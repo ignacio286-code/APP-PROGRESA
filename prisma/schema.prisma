@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Client {
+  id                    String    @id @default(cuid())
+  name                  String
+  website               String?
+  industry              String?
+  logoUrl               String?
+  // WordPress credentials (encrypted in app layer)
+  wpUrl                 String?
+  wpUsername            String?
+  wpAppPassword         String?
+  // Meta Business credentials
+  metaAppId             String?
+  metaAppSecret         String?
+  metaAccessToken       String?
+  metaAdAccountId       String?
+  // Google Ads credentials
+  googleClientId        String?
+  googleClientSecret    String?
+  googleDeveloperToken  String?
+  googleRefreshToken    String?
+  googleCustomerId      String?
+  // Nanobana
+  nanobanaApiKey        String?
+  isActive              Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  contentAssets         ContentAsset[]
+}
+
+model ContentAsset {
+  id         String      @id @default(cuid())
+  client     Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId   String
+  type       AssetType
+  url        String
+  prompt     String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+}
+
+model User {
+  id         String     @id @default(cuid())
+  name       String
+  email      String     @unique
+  role       Role       @default(MEMBER)
+  avatar     String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  campaigns  CampaignMember[]
+  tasks      Task[]
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  startDate   DateTime
+  endDate     DateTime
+  budget      Float?
+  spent       Float?         @default(0)
+  channel     Channel        @default(OTHER)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  members     CampaignMember[]
+  tasks       Task[]
+  metrics     Metric[]
+}
+
+model CampaignMember {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaignId String
+  role       String   @default("member")
+
+  @@unique([userId, campaignId])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  dueDate     DateTime?
+  campaign    Campaign   @relation(fields: [campaignId], references: [id])
+  campaignId  String
+  assignee    User?      @relation(fields: [assigneeId], references: [id])
+  assigneeId  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Metric {
+  id          String   @id @default(cuid())
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  campaignId  String
+  date        DateTime
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Float    @default(0)
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum Channel {
+  EMAIL
+  SOCIAL
+  SEO
+  PPC
+  CONTENT
+  OTHER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  AVATAR_VIDEO
+  DOCUMENT
+}
+
+// ─── CRM Models ───────────────────────────────────────────────────────────────
+
+model CrmLead {
+  id              String    @id @default(cuid())
+  mondayId        String?   @unique
+  name            String
+  rut             String?
+  website         String?
+  contactDate     DateTime?
+  contactPerson   String?
+  phone           String?
+  email           String?
+  status          String?
+  location        String?
+  city            String?
+  hasSocialMedia  String?
+  workday         String?
+  objective       String?
+  selectedPlan    String?
+  webPlan         String?
+  services        String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model CrmProposal {
+  id          String    @id @default(cuid())
+  mondayId    String?   @unique
+  name        String
+  status      String?
+  proposalDate DateTime?
+  followUpDate DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CrmService {
+  id          String   @id @default(cuid())
+  mondayId    String?  @unique
+  name        String
+  description String?
+  price       Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CrmHostingClient {
+  id           String    @id @default(cuid())
+  mondayId     String?   @unique
+  name         String
+  phone        String?
+  website      String?
+  startDate    String?
+  statusOp     String?
+  statusProg   String?
+  statusProc   String?
+  tags         String?
+  location     String?
+  hostingValue Float?
+  paid         String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
