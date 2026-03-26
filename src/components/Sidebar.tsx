@@ -158,10 +158,10 @@ export default function Sidebar() {
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/10 shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFC207" }}>
-              <Megaphone size={16} className="text-black" />
+            <div className="flex flex-col leading-none">
+              <span className="font-black text-xl tracking-tight text-white">Progresa</span>
+              <span className="text-xs font-semibold italic" style={{ color: "#FFC207" }}>Agencia</span>
             </div>
-            <span className="font-bold text-lg tracking-tight">MarketPro</span>
           </div>
         )}
         {collapsed && (

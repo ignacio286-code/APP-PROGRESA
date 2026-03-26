@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 interface HeaderProps {
   title: string;
@@ -33,6 +34,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
             className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
             style={{ backgroundColor: "#FFC207" }}
           />
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-1.5 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+          title="Cerrar sesión"
+        >
+          <LogOut size={18} />
         </button>
       </div>
     </header>
