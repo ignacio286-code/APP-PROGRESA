@@ -33,6 +33,9 @@ model Client {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   contentAssets         ContentAsset[]
+  socialConnections     SocialConnection[]
+  analyticsReports      AnalyticsReport[]
+  reportSchedules       ReportSchedule[]
 }
 
 model ContentAsset {
@@ -149,6 +152,65 @@ enum AssetType {
   DOCUMENT
 }
 
+// ─── Analytics Models ─────────────────────────────────────────────────────────
+
+model SocialConnection {
+  id           String              @id @default(cuid())
+  clientId     String
+  client       Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform     String              // facebook | instagram | youtube | tiktok | linkedin | google_ads
+  accountId    String
+  accountName  String
+  accessToken  String
+  refreshToken String?
+  tokenExpiry  DateTime?
+  scope        String?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  snapshots    AnalyticsSnapshot[]
+
+  @@unique([clientId, platform, accountId])
+}
+
+model AnalyticsSnapshot {
+  id           String           @id @default(cuid())
+  connectionId String
+  connection   SocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  date         DateTime
+  metrics      Json
+  createdAt    DateTime         @default(now())
+}
+
+model AnalyticsReport {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name       String
+  dateFrom   DateTime
+  dateTo     DateTime
+  platforms  String[]
+  reportData Json
+  createdAt  DateTime @default(now())
+}
+
+model ReportSchedule {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  frequency   String   // weekly | monthly
+  dayOfWeek   Int?
+  dayOfMonth  Int?
+  recipients  String[]
+  platforms   String[]
+  isActive    Boolean  @default(true)
+  lastSentAt  DateTime?
+  nextSendAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // ─── CRM Models ───────────────────────────────────────────────────────────────
 
 model CrmLead {
@@ -176,26 +238,61 @@ model CrmLead {
 }
 
 model CrmProposal {
-  id          String    @id @default(cuid())
-  mondayId    String?   @unique
+  id              String    @id @default(cuid())
+  mondayId        String?   @unique
+  folio           String?   @unique
+  name            String
+  // Client info
+  clientRut       String?
+  clientAddress   String?
+  clientPhone     String?
+  clientEmail     String?
+  // Dates & status
+  status          String    @default("Pendiente")
+  issueDate       DateTime  @default(now())
+  dueDate         DateTime?
+  // Legacy Monday fields
+  proposalDate    DateTime?
+  followUpDate    DateTime?
+  // Agent
+  agentName       String?
+  agentPhone      String?
+  agentEmail      String?
+  // Content
+  termsConditions String?
+  notes           String?
+  // Relations
+  items           CrmProposalItem[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model CrmProposalItem {
+  id          String       @id @default(cuid())
+  proposal    CrmProposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposalId  String
+  serviceId   String?
+  service     CrmService?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   name        String
-  status      String?
-  proposalDate DateTime?
-  followUpDate DateTime?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  description String?
+  quantity    Int          @default(1)
+  unitPrice   Float        @default(0)
+  discount    Float        @default(0)
+  tax         Float        @default(0)
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
 }
 
 model CrmService {
-  id          String   @id @default(cuid())
-  mondayId    String?  @unique
-  name        String
-  description String?
-  price       Float?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String            @id @default(cuid())
+  mondayId      String?           @unique
+  name          String
+  description   String?
+  price         Float?
+  notes         String?
+  proposalItems CrmProposalItem[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 }
 
 model CrmHostingClient {

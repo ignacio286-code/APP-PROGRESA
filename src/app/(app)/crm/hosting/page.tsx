@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/Header";
-import { Search, Plus, Trash2, X } from "lucide-react";
+import { Search, Plus, Trash2, X, Filter, Edit2, Check } from "lucide-react";
 
 interface HostingClient {
   id: string;
@@ -11,43 +11,122 @@ interface HostingClient {
   website?: string;
   startDate?: string;
   statusOp?: string;
-  statusProg?: string;
-  statusProc?: string;
   tags?: string;
   location?: string;
   hostingValue?: number;
   paid?: string;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATUS_OPTIONS = ["OPERATIVO", "SUSPENDIDO", "PROGRESA", "EN PROCESO"];
+const PAID_OPTIONS = ["SI", "NO", "PENDIENTE"];
+
 const STATUS_COLORS: Record<string, string> = {
-  OPERATIVO: "bg-green-100 text-green-700",
-  SUSPENDIDO: "bg-red-100 text-red-700",
-  PROGRESA: "bg-blue-100 text-blue-700",
+  OPERATIVO:   "bg-green-100 text-green-700",
+  SUSPENDIDO:  "bg-red-100 text-red-700",
+  PROGRESA:    "bg-blue-100 text-blue-700",
   "EN PROCESO": "bg-yellow-100 text-yellow-700",
 };
 
-function StatusBadge({ label }: { label?: string }) {
-  if (!label) return null;
-  const cls = STATUS_COLORS[label] || "bg-gray-100 text-gray-600";
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{label}</span>;
-}
+const PAID_COLORS: Record<string, string> = {
+  SI:        "bg-green-100 text-green-700",
+  NO:        "bg-red-100 text-red-700",
+  PENDIENTE: "bg-yellow-100 text-yellow-700",
+};
 
-function formatCLP(n?: number) {
+function clp(n?: number) {
   if (!n) return "—";
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
 }
 
-const EMPTY = { name: "", phone: "", website: "", startDate: "", statusOp: "", tags: "", location: "", hostingValue: "", paid: "" };
+const EMPTY = (): Omit<HostingClient, "id"> => ({
+  name: "", phone: "", website: "", startDate: "",
+  statusOp: "OPERATIVO", tags: "", location: "", hostingValue: 0, paid: "PENDIENTE",
+});
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HostingPage() {
   const [items, setItems] = useState<HostingClient[]>([]);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterPaid, setFilterPaid] = useState("");
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(EMPTY);
+  const [editItem, setEditItem] = useState<HostingClient | null>(null);
+  const [form, setForm] = useState<Omit<HostingClient, "id">>(EMPTY());
   const [saving, setSaving] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => { fetch("/api/crm/hosting").then((r) => r.json()).then(setItems).finally(() => setLoading(false)); }, []);
+  const fetchItems = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/crm/hosting");
+    setItems(await res.json());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // ─── Filtering ─────────────────────────────────────────────────────────────
+
+  const filtered = items.filter((c) => {
+    const matchSearch =
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.website || "").toLowerCase().includes(search.toLowerCase()) ||
+      (c.location || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = !filterStatus || c.statusOp === filterStatus;
+    const matchPaid = !filterPaid || (c.paid || "").toUpperCase() === filterPaid;
+    return matchSearch && matchStatus && matchPaid;
+  });
+
+  // ─── Totals ────────────────────────────────────────────────────────────────
+
+  const totalValue = filtered.reduce((sum, c) => sum + (c.hostingValue || 0), 0);
+  const activeCount = filtered.filter((c) => c.statusOp === "OPERATIVO").length;
+  const paidCount = filtered.filter((c) => (c.paid || "").toUpperCase() === "SI").length;
+  const pendingValue = filtered
+    .filter((c) => (c.paid || "").toUpperCase() !== "SI")
+    .reduce((sum, c) => sum + (c.hostingValue || 0), 0);
+
+  // ─── CRUD ──────────────────────────────────────────────────────────────────
+
+  function openCreate() {
+    setEditItem(null);
+    setForm(EMPTY());
+    setShowModal(true);
+  }
+
+  function openEdit(c: HostingClient) {
+    setEditItem(c);
+    setForm({
+      name: c.name, phone: c.phone || "", website: c.website || "",
+      startDate: c.startDate || "", statusOp: c.statusOp || "OPERATIVO",
+      tags: c.tags || "", location: c.location || "",
+      hostingValue: c.hostingValue || 0, paid: c.paid || "PENDIENTE",
+    });
+    setShowModal(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    if (editItem) {
+      await fetch(`/api/crm/hosting/${editItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+    } else {
+      await fetch("/api/crm/hosting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+    }
+    setSaving(false);
+    setShowModal(false);
+    fetchItems();
+  }
 
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar este cliente?")) return;
@@ -55,39 +134,117 @@ export default function HostingPage() {
     setItems((p) => p.filter((i) => i.id !== id));
   }
 
-  async function handleSave() {
-    setSaving(true);
-    await fetch("/api/crm/hosting", {
-      method: "POST",
+  async function togglePaid(c: HostingClient) {
+    const newPaid = (c.paid || "").toUpperCase() === "SI" ? "NO" : "SI";
+    await fetch(`/api/crm/hosting/${c.id}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, hostingValue: form.hostingValue ? parseFloat(form.hostingValue) : null }),
+      body: JSON.stringify({ ...c, paid: newPaid }),
     });
-    setSaving(false);
-    setShowModal(false);
-    setForm(EMPTY);
-    const res = await fetch("/api/crm/hosting");
-    setItems(await res.json());
+    setItems((prev) => prev.map((i) => i.id === c.id ? { ...i, paid: newPaid } : i));
   }
-
-  const filtered = items.filter((i) =>
-    i.name.toLowerCase().includes(search.toLowerCase()) ||
-    (i.website || "").toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header title="Clientes con Hosting" />
       <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
-        <div className="flex items-center gap-3 mb-6">
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente o web..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente, web o ciudad..."
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
           </div>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black" style={{ backgroundColor: "#FFC207" }}>
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${showFilters ? "border-yellow-400 bg-yellow-50 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+          >
+            <Filter size={15} /> Filtros {(filterStatus || filterPaid) && <span className="bg-yellow-400 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">{[filterStatus, filterPaid].filter(Boolean).length}</span>}
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black"
+            style={{ backgroundColor: "#FFC207" }}
+          >
             <Plus size={16} /> Nuevo Cliente
           </button>
         </div>
-        <p className="text-sm text-gray-500 mb-4">{filtered.length} clientes</p>
+
+        {/* Filters panel */}
+        {showFilters && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setFilterStatus("")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition ${!filterStatus ? "border-yellow-400 bg-yellow-100 text-yellow-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                >
+                  Todos
+                </button>
+                {STATUS_OPTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setFilterStatus(filterStatus === s ? "" : s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${filterStatus === s ? `border-transparent ${STATUS_COLORS[s]}` : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Pago</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilterPaid("")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition ${!filterPaid ? "border-yellow-400 bg-yellow-100 text-yellow-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                >
+                  Todos
+                </button>
+                {PAID_OPTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setFilterPaid(filterPaid === s ? "" : s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${filterPaid === s ? `border-transparent ${PAID_COLORS[s]}` : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stats bar */}
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          {[
+            { label: "Total clientes", value: filtered.length, unit: "" },
+            { label: "Activos", value: activeCount, unit: "" },
+            { label: "Pagados", value: paidCount, unit: "" },
+            { label: "Facturación mensual", value: clp(totalValue), unit: "" },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-white rounded-xl border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-0.5">{label}</div>
+              <div className="text-lg font-bold text-gray-900">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {pendingValue > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm flex items-center gap-2">
+            <span className="text-yellow-600 font-semibold">Por cobrar:</span>
+            <span className="font-bold text-yellow-700">{clp(pendingValue)}</span>
+            <span className="text-yellow-500 text-xs">({filtered.filter((c) => (c.paid || "").toUpperCase() !== "SI").length} clientes)</span>
+          </div>
+        )}
+
+        <p className="text-sm text-gray-500 mb-3">{filtered.length} clientes</p>
 
         {loading ? (
           <div className="text-center py-20 text-gray-400">Cargando...</div>
@@ -96,79 +253,187 @@ export default function HostingPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Nombre</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Sitio Web</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Inicio</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Estado</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Hosting</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Tags</th>
-                  <th className="px-4 py-3" />
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Nombre</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Sitio Web</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Inicio</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Estado</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Pago</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Hosting/mes</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Tags</th>
+                  <th className="px-4 py-3 text-xs" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-16 text-gray-400">Sin registros. Sincroniza desde Monday en la vista CRM.</td></tr>
+                  <tr>
+                    <td colSpan={8} className="text-center py-16 text-gray-400">
+                      Sin registros. Agrega el primer cliente con hosting.
+                    </td>
+                  </tr>
                 )}
                 {filtered.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      <div>{c.name}</div>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{c.name}</div>
                       {c.phone && <div className="text-xs text-gray-400">{c.phone}</div>}
+                      {c.location && <div className="text-xs text-gray-400">{c.location}</div>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{c.website || "—"}</td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{c.startDate || "—"}</td>
-                    <td className="px-4 py-3"><StatusBadge label={c.statusOp} /></td>
-                    <td className="px-4 py-3 font-semibold text-sm" style={{ color: "#FFC207" }}>{formatCLP(c.hostingValue)}</td>
+                    <td className="px-4 py-3 text-xs text-blue-600">
+                      {c.website
+                        ? <a href={c.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{c.website}</a>
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{c.startDate || "—"}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={c.statusOp || ""}
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          setItems((prev) => prev.map((i) => i.id === c.id ? { ...i, statusOp: val } : i));
+                          await fetch(`/api/crm/hosting/${c.id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ ...c, statusOp: val }),
+                          });
+                        }}
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold border-0 focus:outline-none cursor-pointer ${STATUS_COLORS[c.statusOp || ""] || "bg-gray-100 text-gray-600"}`}
+                      >
+                        <option value="">—</option>
+                        {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => togglePaid(c)}
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 transition ${PAID_COLORS[(c.paid || "").toUpperCase()] || "bg-gray-100 text-gray-600"}`}
+                      >
+                        {(c.paid || "").toUpperCase() === "SI" && <Check size={10} />}
+                        {c.paid || "—"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-sm" style={{ color: "#FFC207" }}>
+                      {clp(c.hostingValue)}
+                    </td>
                     <td className="px-4 py-3">
                       {c.tags && c.tags.split(",").map((t) => (
-                        <span key={t} className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">{t.trim()}</span>
+                        <span key={t} className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1 mb-0.5">{t.trim()}</span>
                       ))}
                     </td>
-                    <td className="px-4 py-3 flex justify-end">
-                      <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={15} /></button>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                          <Edit2 size={13} />
+                        </button>
+                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
+              {/* Footer totals */}
+              {filtered.length > 0 && (
+                <tfoot>
+                  <tr className="bg-gray-50 border-t-2 border-gray-200">
+                    <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-gray-600">
+                      Total ({filtered.length} clientes)
+                    </td>
+                    <td className="px-4 py-3 font-bold text-sm" style={{ color: "#FFC207" }}>
+                      {clp(totalValue)}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
+      </main>
 
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold">Nuevo Cliente Hosting</h2>
-                <button onClick={() => setShowModal(false)}><X size={20} /></button>
+      {/* ─── Modal ───────────────────────────────────────────────── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">{editItem ? "Editar Cliente" : "Nuevo Cliente Hosting"}</h2>
+              <button onClick={() => setShowModal(false)}><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nombre *" value={form.name as string} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+                <Field label="Teléfono" value={form.phone as string} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
               </div>
-              <div className="space-y-3">
-                {[
-                  { key: "name", label: "Nombre" },
-                  { key: "phone", label: "Teléfono" },
-                  { key: "website", label: "Sitio web" },
-                  { key: "startDate", label: "Fecha inicio" },
-                  { key: "statusOp", label: "Estado operativo" },
-                  { key: "tags", label: "Tags (separados por coma)" },
-                  { key: "location", label: "Ciudad" },
-                  { key: "hostingValue", label: "Valor hosting (CLP)", type: "number" },
-                  { key: "paid", label: "Pagado (SI/NO)" },
-                ].map(({ key, label, type = "text" }) => (
-                  <div key={key}>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-                    <input type={type} value={form[key as keyof typeof form] || ""} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-                  </div>
-                ))}
+              <Field label="Sitio web" value={form.website as string} onChange={(v) => setForm((f) => ({ ...f, website: v }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Fecha inicio" value={form.startDate as string} onChange={(v) => setForm((f) => ({ ...f, startDate: v }))} />
+                <Field label="Ciudad" value={form.location as string} onChange={(v) => setForm((f) => ({ ...f, location: v }))} />
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm">Cancelar</button>
-                <button onClick={handleSave} disabled={saving || !form.name} className="flex-1 py-2 rounded-lg text-sm font-medium text-black disabled:opacity-60" style={{ backgroundColor: "#FFC207" }}>
-                  {saving ? "Guardando..." : "Guardar"}
-                </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+                  <select
+                    value={form.statusOp as string}
+                    onChange={(e) => setForm((f) => ({ ...f, statusOp: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  >
+                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Pagado</label>
+                  <select
+                    value={form.paid as string}
+                    onChange={(e) => setForm((f) => ({ ...f, paid: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  >
+                    {PAID_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Valor hosting (CLP/mes)</label>
+                  <input
+                    type="number" min="0"
+                    value={form.hostingValue as number}
+                    onChange={(e) => setForm((f) => ({ ...f, hostingValue: parseFloat(e.target.value) || 0 }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                <Field label="Tags (separados por coma)" value={form.tags as string} onChange={(v) => setForm((f) => ({ ...f, tags: v }))} />
               </div>
             </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm">Cancelar</button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !form.name}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ backgroundColor: "#FFC207" }}
+              >
+                {saving ? "Guardando..." : <><Check size={14} /> {editItem ? "Actualizar" : "Guardar"}</>}
+              </button>
+            </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+      />
     </div>
   );
 }

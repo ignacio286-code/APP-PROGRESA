@@ -25,6 +25,8 @@ import {
   FileText,
   Package,
   Server,
+  LineChart,
+  FileBarChart2,
 } from "lucide-react";
 import { useState } from "react";
 import { useClient } from "@/lib/client-context";
@@ -49,6 +51,21 @@ const navGroups: NavGroup[] = [
     prefix: "/clients",
     items: [
       { href: "/clients", label: "Gestión de Clientes", icon: UserSquare2 },
+    ],
+  },
+  {
+    label: "Analítica",
+    icon: LineChart,
+    prefix: "/analytics",
+    items: [
+      { href: "/analytics", label: "Resumen General", icon: LineChart },
+      { href: "/analytics/facebook", label: "Facebook", icon: BarChart2 },
+      { href: "/analytics/instagram", label: "Instagram", icon: Image },
+      { href: "/analytics/youtube", label: "YouTube", icon: Video },
+      { href: "/analytics/tiktok", label: "TikTok", icon: Cpu },
+      { href: "/analytics/linkedin", label: "LinkedIn", icon: Briefcase },
+      { href: "/analytics/google_ads", label: "Google Ads", icon: DollarSign },
+      { href: "/analytics/reports", label: "Informes", icon: FileBarChart2 },
     ],
   },
   {
@@ -119,7 +136,8 @@ export default function Sidebar() {
   const { activeClient } = useClient();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Clientes: true,
-    SEO: true,
+    "Analítica": false,
+    SEO: false,
     "Paid Media": false,
     Contenido: false,
     "Sitios Web": false,

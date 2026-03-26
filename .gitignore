@@ -13,8 +13,8 @@
 # testing
 /coverage
 
-# next.js — se sube el build pero NO el caché (pesado e innecesario)
-/.next/cache/
+# next.js
+/.next/
 /out/
 
 # production
