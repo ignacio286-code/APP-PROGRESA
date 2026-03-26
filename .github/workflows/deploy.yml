@@ -1,0 +1,43 @@
+name: Deploy a app.progresa-group.cl
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 45.191.0.242
+          username: progresa
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd ~/app.progresa-group.cl
+
+            echo "→ Descargando cambios de GitHub..."
+            git pull origin main
+
+            echo "→ Instalando dependencias..."
+            source ~/nodevenv/app.progresa-group.cl/20/bin/activate
+            npm install --production=false
+
+            echo "→ Generando Prisma client..."
+            npx prisma generate
+
+            echo "→ Aplicando migraciones..."
+            npx prisma db push --accept-data-loss
+
+            echo "→ Build de Next.js..."
+            npm run build
+
+            echo "→ Reiniciando aplicación..."
+            mkdir -p tmp
+            touch tmp/restart.txt
+
+            echo "✓ Deploy completado en app.progresa-group.cl"
