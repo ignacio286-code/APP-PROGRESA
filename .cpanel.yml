@@ -1,14 +1,5 @@
 ---
 deployment:
   tasks:
-    # Copiar archivos estáticos al lugar que espera el servidor standalone
-    - /bin/cp -R .next/static .next/standalone/.next/static
-    - /bin/cp -R public .next/standalone/public
-
-    # Generar el cliente Prisma para Linux (el servidor del hosting)
-    - export PATH=$PATH:/usr/local/bin:/usr/bin
-    - npx prisma generate
-
-    # Reiniciar la app en Passenger (cPanel Node.js)
-    - mkdir -p tmp
-    - touch tmp/restart.txt
+    - export DEPLOYPATH=/home/progresa/app.progresa-group.cl
+    - /bin/bash -c "source ~/nodevenv/app.progresa-group.cl/20/bin/activate && cd $DEPLOYPATH && npm install --production=false && npx prisma generate && npm run build && mkdir -p tmp && touch tmp/restart.txt"
