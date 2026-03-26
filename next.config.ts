@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Netlify maneja el output automáticamente
 };
 
 export default nextConfig;
