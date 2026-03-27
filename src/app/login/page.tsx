@@ -1,44 +1,25 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { loginAction } from "./actions";
 import { Loader2, Lock, Mail } from "lucide-react";
 
-function LoginForm() {
-  const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const err = searchParams.get("error");
-    if (err) setError("Correo o contraseña incorrectos");
-  }, [searchParams]);
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: "/dashboard",
-      });
-      if (!res) {
-        setError("Error al conectar con el servidor");
-        return;
-      }
-      if (res.error) {
-        setError("Correo o contraseña incorrectos");
-      } else if (res.ok) {
-        window.location.href = "/dashboard";
+      const formData = new FormData(e.currentTarget);
+      const result = await loginAction(formData);
+      if (result?.error) {
+        setError(result.error);
       }
     } catch {
-      setError("Error al iniciar sesión. Intenta de nuevo.");
+      // redirect throws — ignored
     } finally {
       setLoading(false);
     }
@@ -70,8 +51,7 @@ function LoginForm() {
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
                   required
                   placeholder="tu@correo.com"
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
@@ -82,11 +62,10 @@ function LoginForm() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Contraseña</label>
               <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray.400" />
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
                   required
                   placeholder="••••••••"
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
@@ -117,13 +96,5 @@ function LoginForm() {
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }
