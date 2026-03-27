@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, FileText } from "lucide-react";
 
 const SERVICES = [
   "Social Media", "Meta Business", "Google Ads (SEM)", "SEO", "Web - Landing Page",
@@ -12,13 +13,17 @@ const SERVICES = [
 
 const PLANS = ["PLAN S", "PLAN M", "PLAN L", "PLAN XL", "No aplica Plan", "Personalizado"];
 
+const EMPTY_FORM = () => ({
+  name: "", rut: "", giro: "", contactPerson: "", cargo: "", phone: "", email: "",
+  website: "", location: "", city: "", hasSocialMedia: "NO", socialMediaNames: "",
+  description: "", objective: "", competitors: "", keywords: "",
+  budget: "", selectedPlan: "", services: [] as string[], notes: "",
+});
+
 export default function IntakePage() {
-  const [form, setForm] = useState({
-    name: "", rut: "", contactPerson: "", cargo: "", phone: "", email: "",
-    website: "", location: "", city: "", hasSocialMedia: "NO", socialMediaNames: "",
-    description: "", objective: "", competitors: "", keywords: "",
-    budget: "", selectedPlan: "", services: [] as string[], notes: "",
-  });
+  const router = useRouter();
+  const [form, setForm] = useState(EMPTY_FORM());
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -46,14 +51,33 @@ export default function IntakePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          rut: form.rut || null,
+          giro: form.giro || null,
+          contactPerson: form.contactPerson || null,
+          cargo: form.cargo || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          website: form.website || null,
+          location: form.location || null,
+          city: form.city || null,
+          hasSocialMedia: form.hasSocialMedia,
+          socialMediaNames: form.socialMediaNames || null,
+          description: form.description || null,
+          objective: form.objective || null,
+          competitors: form.competitors || null,
+          keywords: form.keywords || null,
           budget: form.budget ? parseFloat(form.budget) : null,
-          services: form.services.join(", "),
+          selectedPlan: form.selectedPlan || null,
+          services: form.services.join(", ") || null,
+          notes: form.notes || null,
           status: "Nuevo",
           contactDate: new Date().toISOString(),
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
+      const lead = await res.json();
+      setCreatedLeadId(lead.id);
       setSuccess(true);
     } catch {
       setError("Error al enviar. Intenta de nuevo.");
@@ -69,15 +93,24 @@ export default function IntakePage() {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="bg-white rounded-2xl shadow p-10 max-w-md w-full text-center">
             <CheckCircle size={56} className="mx-auto mb-4 text-green-500" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">¡Requerimiento registrado!</h2>
-            <p className="text-gray-500 text-sm mb-6">El lead fue creado y está listo para cotizar.</p>
-            <button
-              onClick={() => { setSuccess(false); setForm({ name: "", rut: "", contactPerson: "", cargo: "", phone: "", email: "", website: "", location: "", city: "", hasSocialMedia: "NO", socialMediaNames: "", description: "", objective: "", competitors: "", keywords: "", budget: "", selectedPlan: "", services: [], notes: "" }); }}
-              className="px-6 py-2.5 rounded-lg font-semibold text-sm text-black"
-              style={{ backgroundColor: "#FFC207" }}
-            >
-              Nuevo requerimiento
-            </button>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">¡Lead creado!</h2>
+            <p className="text-gray-500 text-sm mb-6">El cliente potencial fue registrado. ¿Quieres generar una propuesta ahora?</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => router.push(`/crm/proposals?leadId=${createdLeadId}`)}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-sm text-black"
+                style={{ backgroundColor: "#FFC207" }}
+              >
+                <FileText size={16} />
+                Generar Propuesta
+              </button>
+              <button
+                onClick={() => { setSuccess(false); setCreatedLeadId(null); setForm(EMPTY_FORM()); }}
+                className="px-6 py-2.5 rounded-lg font-semibold text-sm text-gray-600 border border-gray-200 hover:bg-gray-50"
+              >
+                Nuevo requerimiento
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -102,6 +135,11 @@ export default function IntakePage() {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">RUT</label>
                 <input value={form.rut} onChange={e => set("rut", e.target.value)} placeholder="12.345.678-9"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Giro comercial</label>
+                <input value={form.giro} onChange={e => set("giro", e.target.value)} placeholder="Ej: Retail, Gastronomía, Salud..."
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
               </div>
               <div>

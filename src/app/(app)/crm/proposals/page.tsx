@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import {
   Search, Plus, Trash2, X, ChevronDown, ChevronRight,
@@ -32,11 +33,15 @@ interface Proposal {
   status: string;
   issueDate: string;
   dueDate?: string;
+  sentAt?: string;
+  acceptedAt?: string;
+  leadId?: string;
   agentName?: string;
   agentPhone?: string;
   agentEmail?: string;
   termsConditions?: string;
   notes?: string;
+  lostReason?: string;
   items: ProposalItem[];
 }
 
@@ -319,12 +324,22 @@ function TotalsBar({ proposals }: { proposals: Proposal[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function ProposalsPage() {
+const TABS = [
+  { key: "", label: "Todas" },
+  { key: "Ganado", label: "Ganadas" },
+  { key: "Perdido", label: "Perdidas" },
+  { key: "Estancado", label: "Estancadas" },
+];
+
+import { Suspense } from "react";
+
+function ProposalsContent() {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<Proposal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [activeTab, setActiveTab] = useState("");
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showModal, setShowModal] = useState(false);
@@ -334,23 +349,45 @@ export default function ProposalsPage() {
   const [saving, setSaving] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [syncingMonday, setSyncingMonday] = useState(false);
+  // Lost reason modal
+  const [lostModal, setLostModal] = useState<{ id: string } | null>(null);
+  const [lostReason, setLostReason] = useState("");
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (filterStatus) params.set("status", filterStatus);
     const res = await fetch(`/api/crm/proposals?${params}`);
     setItems(await res.json());
     setLoading(false);
-  }, [search, filterStatus]);
+  }, [search]);
 
   useEffect(() => { fetchProposals(); }, [fetchProposals]);
 
   useEffect(() => {
     fetch("/api/crm/services").then((r) => r.json()).then(setServices);
-    fetch("/api/crm/leads").then((r) => r.json()).then(setLeads);
-  }, []);
+    fetch("/api/crm/leads").then((r) => r.json()).then((data) => {
+      setLeads(data);
+      // Auto-open modal if leadId param present
+      const leadId = searchParams.get("leadId");
+      if (leadId) {
+        const lead = data.find((l: Lead) => l.id === leadId);
+        if (lead) {
+          setEditId(null);
+          setSelectedLead(lead);
+          setForm(f => ({
+            ...EMPTY_FORM(),
+            name: lead.name,
+            clientRut: lead.rut || "",
+            clientAddress: [lead.location, lead.city].filter(Boolean).join(", "),
+            clientPhone: lead.phone || "",
+            clientEmail: lead.email || "",
+          }));
+          setShowModal(true);
+        }
+      }
+    });
+  }, [searchParams]);
 
   // ─── Lead selection ───────────────────────────────────────────────────────
 
@@ -428,12 +465,31 @@ export default function ProposalsPage() {
   }
 
   async function updateStatus(id: string, status: string) {
+    if (status === "Perdido") {
+      setLostReason("");
+      setLostModal({ id });
+      return;
+    }
     await fetch(`/api/crm/proposals/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
     setItems((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
+    if (status === "Ganado") {
+      await fetch(`/api/crm/proposals/${id}/accept`, { method: "POST" });
+    }
+  }
+
+  async function confirmLost() {
+    if (!lostModal) return;
+    await fetch(`/api/crm/proposals/${lostModal.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Perdido", lostReason }),
+    });
+    setItems((prev) => prev.map((p) => p.id === lostModal.id ? { ...p, status: "Perdido", lostReason } : p));
+    setLostModal(null);
   }
 
   // ─── Items ────────────────────────────────────────────────────────────────
@@ -484,10 +540,72 @@ export default function ProposalsPage() {
     setSyncingMonday(false);
   }
 
+  // Compute tab counts
+  const tabCounts = {
+    "": items.length,
+    "Ganado": items.filter(p => p.status === "Ganado").length,
+    "Perdido": items.filter(p => p.status === "Perdido").length,
+    "Estancado": items.filter(p => p.status === "Estancado").length,
+  };
+
+  const visibleItems = items.filter(p => {
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+    const matchTab = !activeTab || p.status === activeTab;
+    return matchSearch && matchTab;
+  });
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header title="Propuestas Comerciales" />
-      <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
+
+      {/* Lost reason modal */}
+      {lostModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="font-bold text-gray-900 text-lg mb-1">¿Por qué se perdió?</h3>
+            <p className="text-sm text-gray-500 mb-4">Indica la razón para llevar un mejor seguimiento.</p>
+            <textarea
+              value={lostReason}
+              onChange={e => setLostReason(e.target.value)}
+              rows={4}
+              placeholder="Ej: Precio muy alto, eligió otra agencia, sin presupuesto..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setLostModal(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button onClick={confirmLost} className="px-4 py-2 text-sm font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600">
+                Confirmar perdida
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
+
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-4 bg-white border border-gray-200 rounded-xl p-1 w-fit flex-wrap">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === tab.key
+                  ? "bg-black text-white"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              {tab.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === tab.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+              }`}>
+                {tabCounts[tab.key as keyof typeof tabCounts] ?? 0}
+              </span>
+            </button>
+          ))}
+        </div>
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -500,12 +618,6 @@ export default function ProposalsPage() {
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${showFilters ? "border-yellow-400 bg-yellow-50 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-          >
-            <Filter size={15} /> Filtros
-          </button>
           <button
             onClick={handleSyncMonday}
             disabled={syncingMonday}
@@ -523,30 +635,8 @@ export default function ProposalsPage() {
           </button>
         </div>
 
-        {/* Filters */}
-        {showFilters && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="">Todos</option>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            {filterStatus && (
-              <button onClick={() => setFilterStatus("")} className="self-end text-xs text-gray-400 hover:text-gray-600 underline">
-                Limpiar
-              </button>
-            )}
-          </div>
-        )}
-
         {items.length > 0 && <TotalsBar proposals={items} />}
-        <p className="text-sm text-gray-500 mb-3">{items.length} propuesta{items.length !== 1 ? "s" : ""}</p>
+        <p className="text-sm text-gray-500 mb-3">{visibleItems.length} propuesta{visibleItems.length !== 1 ? "s" : ""}</p>
 
         {loading ? (
           <div className="text-center py-20 text-gray-400">Cargando...</div>
@@ -558,11 +648,11 @@ export default function ProposalsPage() {
               <div>Emisión</div><div>Vencimiento</div><div>Total</div><div>Items</div><div /><div />
             </div>
 
-            {items.length === 0 && (
-              <div className="text-center py-16 text-gray-400">Sin propuestas. Crea la primera con el botón amarillo.</div>
+            {visibleItems.length === 0 && (
+              <div className="text-center py-16 text-gray-400">Sin propuestas en esta categoría.</div>
             )}
 
-            {items.map((p) => {
+            {visibleItems.map((p) => {
               const total = proposalNetTotal(p.items);
               const exp = expanded[p.id];
               return (
@@ -872,4 +962,8 @@ function Field({ label, value, onChange, type = "text" }: {
       />
     </div>
   );
+}
+
+export default function ProposalsPage() {
+  return <Suspense><ProposalsContent /></Suspense>;
 }

@@ -125,6 +125,7 @@ const navGroups: NavGroup[] = [
       { href: "/crm/clients", label: "Clientes Progresa", icon: Building2 },
       { href: "/crm/services", label: "Servicios", icon: Package },
       { href: "/crm/hosting", label: "Clientes Hosting", icon: Server },
+      { href: "/crm/documents", label: "Documentación", icon: FileText },
     ],
   },
 ];

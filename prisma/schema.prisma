@@ -228,6 +228,7 @@ model CrmLead {
   status          String?
   location        String?
   city            String?
+  giro            String?
   hasSocialMedia  String?
   socialMediaNames String?
   workday         String?
@@ -263,6 +264,7 @@ model CrmProposal {
   sentAt          DateTime?
   acceptedAt      DateTime?
   acceptToken     String?   @unique
+  lostReason      String?
   // Legacy Monday fields
   proposalDate    DateTime?
   followUpDate    DateTime?
@@ -335,6 +337,16 @@ model CrmClient {
   proposal        CrmProposal? @relation(fields: [proposalId], references: [id])
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+}
+
+model CrmDocument {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?  @db.Text
+  fileUrl   String?
+  fileType  String?  @default("text")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CrmHostingClient {
