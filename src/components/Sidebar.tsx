@@ -119,8 +119,10 @@ const navGroups: NavGroup[] = [
     prefix: "/crm",
     items: [
       { href: "/crm", label: "Área Comercial", icon: Briefcase },
+      { href: "/crm/intake", label: "Toma de Requerimientos", icon: FileText },
       { href: "/crm/leads", label: "Clientes Potenciales", icon: Users },
       { href: "/crm/proposals", label: "Propuestas", icon: FileText },
+      { href: "/crm/clients", label: "Clientes Progresa", icon: Building2 },
       { href: "/crm/services", label: "Servicios", icon: Package },
       { href: "/crm/hosting", label: "Clientes Hosting", icon: Server },
     ],

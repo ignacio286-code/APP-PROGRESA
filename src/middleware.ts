@@ -7,6 +7,7 @@ export async function middleware(req: NextRequest) {
 
   // Allow auth API routes
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
+  if (pathname.startsWith("/propuesta/")) return NextResponse.next();
 
   // NextAuth v5 uses "authjs.session-token" (HTTP) or "__Secure-authjs.session-token" (HTTPS)
   const isSecure = req.url.startsWith("https://");

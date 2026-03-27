@@ -215,27 +215,35 @@ model ReportSchedule {
 // ─── CRM Models ───────────────────────────────────────────────────────────────
 
 model CrmLead {
-  id              String    @id @default(cuid())
-  mondayId        String?   @unique
+  id              String     @id @default(cuid())
+  mondayId        String?    @unique
   name            String
   rut             String?
   website         String?
   contactDate     DateTime?
   contactPerson   String?
+  cargo           String?
   phone           String?
   email           String?
   status          String?
   location        String?
   city            String?
   hasSocialMedia  String?
+  socialMediaNames String?
   workday         String?
   objective       String?
+  description     String?
+  competitors     String?
+  keywords        String?
+  budget          Float?
   selectedPlan    String?
   webPlan         String?
   services        String?
   notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  convertedAt     DateTime?
+  client          CrmClient?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
 
 model CrmProposal {
@@ -252,6 +260,9 @@ model CrmProposal {
   status          String    @default("Pendiente")
   issueDate       DateTime  @default(now())
   dueDate         DateTime?
+  sentAt          DateTime?
+  acceptedAt      DateTime?
+  acceptToken     String?   @unique
   // Legacy Monday fields
   proposalDate    DateTime?
   followUpDate    DateTime?
@@ -259,11 +270,14 @@ model CrmProposal {
   agentName       String?
   agentPhone      String?
   agentEmail      String?
+  // Lead link
+  leadId          String?
   // Content
   termsConditions String?
   notes           String?
   // Relations
   items           CrmProposalItem[]
+  client          CrmClient?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
@@ -294,6 +308,33 @@ model CrmService {
   proposalItems CrmProposalItem[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+}
+
+model CrmClient {
+  id              String       @id @default(cuid())
+  name            String
+  rut             String?
+  website         String?
+  contactPerson   String?
+  cargo           String?
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  services        String?
+  selectedPlan    String?
+  budget          Float?
+  objective       String?
+  notes           String?
+  status          String       @default("Activo")
+  startDate       DateTime     @default(now())
+  // Origin
+  leadId          String?      @unique
+  lead            CrmLead?     @relation(fields: [leadId], references: [id])
+  proposalId      String?      @unique
+  proposal        CrmProposal? @relation(fields: [proposalId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model CrmHostingClient {
