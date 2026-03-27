@@ -27,6 +27,7 @@ import {
   Server,
   LineChart,
   FileBarChart2,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { useClient } from "@/lib/client-context";
@@ -42,6 +43,11 @@ interface NavGroup {
   icon: React.ElementType;
   prefix: string;
   items: NavItem[];
+}
+
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const navGroups: NavGroup[] = [
@@ -130,7 +136,7 @@ const bottomNav = [
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { activeClient } = useClient();
@@ -148,11 +154,16 @@ export default function Sidebar() {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
+  function handleNavClick() {
+    onMobileClose?.();
+  }
+
   return (
     <aside
-      className={`flex flex-col h-screen bg-black text-white transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      } fixed left-0 top-0 z-50`}
+      className={`flex flex-col h-screen bg-black text-white transition-all duration-300 fixed left-0 top-0 z-50
+        ${collapsed ? "md:w-16" : "md:w-64"} w-64
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+      `}
     >
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/10 shrink-0">
@@ -169,14 +180,23 @@ export default function Sidebar() {
             <Megaphone size={16} className="text-black" />
           </div>
         )}
-        {!collapsed && (
+        <div className="flex items-center gap-2">
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="hidden md:flex text-white/50 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          )}
+          {/* Mobile close button */}
           <button
-            onClick={() => setCollapsed(true)}
-            className="text-white/50 hover:text-white transition-colors"
+            onClick={onMobileClose}
+            className="md:hidden text-white/50 hover:text-white transition-colors"
           >
-            <ChevronLeft size={18} />
+            <X size={18} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Active Client Badge */}
@@ -194,7 +214,6 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-4 overflow-y-auto space-y-1">
-        {/* Main groups */}
         {navGroups.map((group) => {
           const isGroupActive = pathname.startsWith(group.prefix);
           const isOpen = openGroups[group.label];
@@ -202,11 +221,10 @@ export default function Sidebar() {
 
           return (
             <div key={group.label}>
-              {/* Group header */}
               {!collapsed ? (
                 <button
                   onClick={() => toggleGroup(group.label)}
-                  className={`w-full flex items-center justify-between px-4 py-2 mx-0 text-left transition-colors ${
+                  className={`w-full flex items-center justify-between px-4 py-2 text-left transition-colors ${
                     isGroupActive ? "text-yellow-400" : "text-white/60 hover:text-white"
                   }`}
                 >
@@ -225,7 +243,6 @@ export default function Sidebar() {
                 </div>
               )}
 
-              {/* Group items */}
               {(isOpen || collapsed) &&
                 group.items.map(({ href, label, icon: Icon }) => {
                   const active = pathname === href || pathname.startsWith(href + "/");
@@ -233,6 +250,7 @@ export default function Sidebar() {
                     <Link
                       key={href}
                       href={href}
+                      onClick={handleNavClick}
                       className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-0.5 transition-all text-sm ${
                         active
                           ? "text-black font-semibold"
@@ -250,16 +268,15 @@ export default function Sidebar() {
           );
         })}
 
-        {/* Divider */}
         <div className="mx-4 border-t border-white/10 my-2" />
 
-        {/* Bottom nav items */}
         {bottomNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
               href={href}
+              onClick={handleNavClick}
               className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-0.5 transition-all text-sm ${
                 active
                   ? "text-black font-semibold"
@@ -275,9 +292,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse button (when collapsed) */}
+      {/* Collapse button (desktop, when collapsed) */}
       {collapsed && (
-        <div className="py-4 flex justify-center shrink-0">
+        <div className="py-4 hidden md:flex justify-center shrink-0">
           <button
             onClick={() => setCollapsed(false)}
             className="text-white/50 hover:text-white transition-colors"
@@ -299,7 +316,7 @@ export default function Sidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium">Admin</p>
-              <p className="text-xs text-white/50 truncate">admin@marketpro.com</p>
+              <p className="text-xs text-white/50 truncate">Progresa Agencia</p>
             </div>
           </div>
         </div>
