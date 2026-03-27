@@ -40,7 +40,11 @@ export default function DocumentsPage() {
 
   async function load() {
     const res = await fetch("/api/crm/documents");
-    const data = await res.json();
+    if (!res.ok) return;
+    const text = await res.text();
+    if (!text) return;
+    let data: Doc[];
+    try { data = JSON.parse(text); } catch { return; }
     setDocs(data);
     // Auto-create T&C if no docs exist
     if (data.length === 0 && !initialized) {
@@ -50,9 +54,12 @@ export default function DocumentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "Términos y Condiciones", content: DEFAULT_TC, fileType: "text" }),
       });
-      const doc = await r.json();
-      setDocs([doc]);
-      selectDoc(doc);
+      if (!r.ok) return;
+      try {
+        const doc = await r.json();
+        setDocs([doc]);
+        selectDoc(doc);
+      } catch { return; }
     } else if (data.length > 0 && !selected) {
       selectDoc(data[0]);
     }
