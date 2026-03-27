@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Lock, Mail } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) setError("Correo o contraseña incorrectos");
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,14 +27,20 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/dashboard",
       });
-      if (res?.error) {
+      if (!res) {
+        setError("Error al conectar con el servidor");
+        return;
+      }
+      if (res.error) {
         setError("Correo o contraseña incorrectos");
-      } else {
-        router.push("/dashboard");
+      } else if (res.ok) {
+        router.push(res.url ?? "/dashboard");
+        router.refresh();
       }
     } catch {
-      setError("Error al iniciar sesión");
+      setError("Error al iniciar sesión. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -37,7 +49,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md">
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
           {/* Logo */}
           <div className="flex justify-center mb-8">
@@ -49,7 +60,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="border-t border-gray-100 mb-6" />
 
           <h2 className="text-lg font-semibold text-gray-800 mb-1 text-center">Acceso al panel</h2>
@@ -109,5 +119,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
