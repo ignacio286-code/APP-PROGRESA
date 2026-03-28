@@ -8,24 +8,41 @@ interface ProductInput {
   name: string;
 }
 
+function toSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
 async function generateProductSEO(name: string, clientName?: string) {
-  const prompt = `Eres un experto en SEO para ecommerce. Genera contenido SEO optimizado para este producto en español.
+  const slugBase = toSlug(name);
+  const prompt = `Eres un experto en SEO para ecommerce. Genera contenido SEO completo y optimizado para este producto en español. Cumple estrictamente con todos los criterios de Rank Math.
 
 Producto: "${name}"
 Tienda: ${clientName || "la tienda"}
+Slug sugerido como base: "${slugBase}"
 
-Responde SOLO con este JSON (sin markdown):
+Responde SOLO con este JSON (sin markdown, sin texto extra):
 {
-  "metaTitle": "SEO title máx 60 chars con el nombre del producto y power word",
-  "metaDescription": "Meta description máx 160 chars persuasiva con CTA",
-  "focusKeyword": "${name}",
-  "shortDescription": "Descripción corta 2-3 oraciones sobre el producto",
-  "description": "Descripción larga HTML 300-500 palabras con h3, p, ul para beneficios y características del producto. Incluir la keyword '${name}' de forma natural varias veces."
+  "metaTitle": "Título SEO de 50-60 caracteres. Incluye la keyword al inicio, una power word y número si aplica. Ej: 'Mejores Ruedas para Transpaleta Chile | Envío Gratis'",
+  "metaDescription": "Meta descripción de 140-160 caracteres. Incluye la keyword, propuesta de valor y CTA. Ej: 'Compra ruedas para transpaleta de alta resistencia en Chile. Envío en 24h, garantía de 2 años. ¡Cotiza ahora!'",
+  "focusKeyword": "keyword principal exacta de 2-4 palabras muy buscadas para este producto",
+  "slug": "url-seo-del-producto-con-keyword-principal-en-guiones",
+  "ogTitle": "Título para redes sociales (igual o similar al metaTitle)",
+  "ogDescription": "Descripción para redes sociales (igual o similar al metaDescription)",
+  "schema": "Product",
+  "shortDescription": "Descripción corta HTML de 2-3 oraciones. Incluye la keyword de forma natural.",
+  "description": "Descripción larga HTML de 400-600 palabras. Estructura: <h2> con keyword, párrafo introductorio con keyword, <h3> Características, <ul> con 5-7 beneficios clave (cada uno menciona variaciones de keyword), <h3> ¿Por qué elegirnos?, párrafo final con CTA. La keyword debe aparecer al menos 5 veces de forma natural."
 }`;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1500,
+    max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -79,31 +96,40 @@ export async function POST(req: NextRequest) {
       metaTitle?: string;
       metaDescription?: string;
       focusKeyword?: string;
+      slug?: string;
     }> = [];
 
     for (const product of products) {
       try {
-        // 1. Generate SEO content with AI
+        // 1. Generate complete SEO content with AI
         const seo = await generateProductSEO(product.name, clientName);
 
-        // 2. Update WooCommerce product description
+        const slug = seo.slug || toSlug(seo.focusKeyword || product.name);
+
+        // 2. Update WooCommerce product: description, short description, and slug
         await wpDirect(wpUrl, wpUsername, wpAppPassword, "wc/v3", `products/${product.id}`, "POST", {
           description: seo.description,
           short_description: seo.shortDescription,
+          slug,
         });
 
-        // 3. Update RankMath meta via wp/v2 (requires PHP snippet in WordPress)
+        // 3. Update RankMath meta + slug via wp/v2 (requires PHP snippet in WordPress)
         try {
           await wpDirect(wpUrl, wpUsername, wpAppPassword, "wp/v2", `product/${product.id}`, "POST", {
+            slug,
             meta: {
               rank_math_title: seo.metaTitle,
               rank_math_description: seo.metaDescription,
               rank_math_focus_keyword: seo.focusKeyword || product.name,
               rank_math_rich_snippet: "Product",
+              rank_math_og_title: seo.ogTitle || seo.metaTitle,
+              rank_math_og_description: seo.ogDescription || seo.metaDescription,
+              rank_math_twitter_title: seo.ogTitle || seo.metaTitle,
+              rank_math_twitter_description: seo.ogDescription || seo.metaDescription,
             },
           });
         } catch {
-          // RankMath snippet may not be installed — content still saved
+          // RankMath snippet may not be installed — content + slug still saved via WC endpoint
         }
 
         results.push({
@@ -113,6 +139,7 @@ export async function POST(req: NextRequest) {
           metaTitle: seo.metaTitle,
           metaDescription: seo.metaDescription,
           focusKeyword: seo.focusKeyword || product.name,
+          slug,
         });
       } catch (err) {
         results.push({

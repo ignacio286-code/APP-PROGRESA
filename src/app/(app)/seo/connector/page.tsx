@@ -15,6 +15,7 @@ interface WpItem {
   id: number;
   title: string;
   link: string;
+  slug: string;
   status: string;
   type: "page" | "product";
   seoTitle: string;
@@ -302,6 +303,17 @@ export default function SeoConnectorPage() {
     };
   }
 
+  function toSlug(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+  }
+
   // ── Connect ───────────────────────────────────────────────────────────────
   async function connect() {
     if (!activeClient?.wpUrl) { setError("Configura WordPress en el cliente activo."); return; }
@@ -316,6 +328,7 @@ export default function SeoConnectorPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const raw = pagesRes.value.map((p: any) => ({
           id: p.id,
+          slug: p.slug || "",
           title: (typeof p.title === "object" ? p.title?.rendered : p.title) || "(sin título)",
           link: p.link || "",
           status: p.status || "publish",
@@ -329,6 +342,7 @@ export default function SeoConnectorPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const raw = productsRes.value.map((p: any) => ({
           id: p.id,
+          slug: p.slug || "",
           title: p.name || "(sin nombre)",
           link: p.permalink || "",
           status: p.status || "publish",
@@ -341,6 +355,7 @@ export default function SeoConnectorPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const raw = catsRes.value.map((c: any) => ({
           id: c.id,
+          slug: c.slug || "",
           title: c.name || "(sin nombre)",
           link: c.slug ? `${activeClient?.wpUrl?.replace(/\/$/, "")}/product-category/${c.slug}/` : "",
           status: "publish",
@@ -377,6 +392,7 @@ export default function SeoConnectorPage() {
           const updated = {
             ...prev,
             content: rawContent,
+            slug: data.slug || prev.slug,
             ...(parsedMeta.seoTitle        ? { seoTitle: parsedMeta.seoTitle }                 : {}),
             ...(parsedMeta.metaDescription ? { metaDescription: parsedMeta.metaDescription }   : {}),
             ...(parsedMeta.focusKeyword    ? { focusKeyword: parsedMeta.focusKeyword }         : {}),
@@ -401,15 +417,29 @@ export default function SeoConnectorPage() {
     try {
       // Products: WP REST uses "product" (singular, WC post type); pages uses "pages"
       const wpType = editing.type === "product" ? "product" : "pages";
+
+      // Save RankMath meta + slug + content via wp/v2
       const saved = await wpFetch(`${wpType}/${editing.id}`, "wp/v2", "POST", {
         ...(editing.content ? { content: editing.content } : {}),
+        ...(editing.slug ? { slug: editing.slug } : {}),
         meta: {
           rank_math_title: editing.seoTitle,
           rank_math_description: editing.metaDescription,
           rank_math_focus_keyword: editing.focusKeyword,
           rank_math_rich_snippet: editing.schema,
+          rank_math_og_title: editing.seoTitle,
+          rank_math_og_description: editing.metaDescription,
+          rank_math_twitter_title: editing.seoTitle,
+          rank_math_twitter_description: editing.metaDescription,
         },
       });
+
+      // For products: also update slug via WooCommerce endpoint
+      if (editing.type === "product" && editing.slug) {
+        try {
+          await wpFetch(`products/${editing.id}`, "wc/v3", "POST", { slug: editing.slug });
+        } catch { /* WC slug update failed silently */ }
+      }
 
       // Verify meta was actually written (Rank Math free may not register product meta for REST)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -577,7 +607,16 @@ export default function SeoConnectorPage() {
         if (!item) continue;
         const wpType = item.type === "product" ? "product" : "pages";
         await wpFetch(`${wpType}/${result.id}`, "wp/v2", "POST", {
-          meta: { rank_math_title: result.seoTitle, rank_math_description: result.metaDescription, rank_math_focus_keyword: result.focusKeyword, rank_math_rich_snippet: result.schema },
+          meta: {
+            rank_math_title: result.seoTitle,
+            rank_math_description: result.metaDescription,
+            rank_math_focus_keyword: result.focusKeyword,
+            rank_math_rich_snippet: result.schema,
+            rank_math_og_title: result.seoTitle,
+            rank_math_og_description: result.metaDescription,
+            rank_math_twitter_title: result.seoTitle,
+            rank_math_twitter_description: result.metaDescription,
+          },
         });
         const updater = (prev: WpItem[]) => prev.map((it) => it.id === result.id ? { ...it, ...result } : it);
         if (item.type === "page") setPages(updater); else setProducts(updater);
@@ -802,10 +841,14 @@ export default function SeoConnectorPage() {
                         navigator.clipboard.writeText(
 `add_action( 'init', function () {
     $fields = [
-        'rank_math_title'         => 'string',
-        'rank_math_description'   => 'string',
-        'rank_math_focus_keyword' => 'string',
-        'rank_math_rich_snippet'  => 'string',
+        'rank_math_title'               => 'string',
+        'rank_math_description'         => 'string',
+        'rank_math_focus_keyword'       => 'string',
+        'rank_math_rich_snippet'        => 'string',
+        'rank_math_og_title'            => 'string',
+        'rank_math_og_description'      => 'string',
+        'rank_math_twitter_title'       => 'string',
+        'rank_math_twitter_description' => 'string',
     ];
 
     foreach ( $fields as $key => $type ) {
@@ -829,10 +872,14 @@ export default function SeoConnectorPage() {
                   </div>
                   <pre className="bg-gray-900 text-green-300 text-xs p-4 rounded-b-lg overflow-x-auto leading-relaxed font-mono whitespace-pre">{`add_action( 'init', function () {
     $fields = [
-        'rank_math_title'         => 'string',
-        'rank_math_description'   => 'string',
-        'rank_math_focus_keyword' => 'string',
-        'rank_math_rich_snippet'  => 'string',
+        'rank_math_title'               => 'string',
+        'rank_math_description'         => 'string',
+        'rank_math_focus_keyword'       => 'string',
+        'rank_math_rich_snippet'        => 'string',
+        'rank_math_og_title'            => 'string',
+        'rank_math_og_description'      => 'string',
+        'rank_math_twitter_title'       => 'string',
+        'rank_math_twitter_description' => 'string',
     ];
 
     foreach ( $fields as $key => $type ) {
@@ -1381,7 +1428,11 @@ export default function SeoConnectorPage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-5">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Vista previa en Google</p>
                     <p className="text-base font-medium text-blue-700 truncate">{editing.seoTitle || editing.title}</p>
-                    <p className="text-sm text-green-700 truncate">{editing.link}</p>
+                    <p className="text-sm text-green-700 truncate">
+                      {editing.slug
+                        ? editing.link.replace(/\/[^/]*\/?$/, `/${editing.slug}/`)
+                        : editing.link}
+                    </p>
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{editing.metaDescription || "Sin descripción"}</p>
                   </div>
 
@@ -1406,6 +1457,26 @@ export default function SeoConnectorPage() {
                         onChange={(e) => setEditing({ ...editing, metaDescription: e.target.value })}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
                         placeholder="Descripción para Google (máx 160 chars)" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-sm font-semibold text-gray-700">Enlace Permanente (Slug)</label>
+                        <button
+                          onClick={() => setEditing({ ...editing, slug: toSlug(editing.focusKeyword.split(",")[0] || editing.title) })}
+                          className="text-xs text-yellow-700 hover:underline font-medium">
+                          Generar desde keyword
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 shrink-0 font-mono truncate max-w-[140px]">
+                          {editing.link.replace(/\/[^/]*\/?$/, "/") || "/"}
+                        </span>
+                        <input value={editing.slug}
+                          onChange={(e) => setEditing({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-") })}
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 font-mono"
+                          placeholder="slug-seo-optimizado" />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Solo letras minúsculas, números y guiones. Incluye la keyword principal.</p>
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-1">Palabras Clave (sep. por comas)</label>
