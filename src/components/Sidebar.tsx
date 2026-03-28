@@ -28,6 +28,7 @@ import {
   LineChart,
   FileBarChart2,
   X,
+  Share2,
 } from "lucide-react";
 import { useState } from "react";
 import { useClient } from "@/lib/client-context";
@@ -114,6 +115,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Social Media",
+    icon: Share2,
+    prefix: "/social-media",
+    items: [
+      { href: "/social-media", label: "Panel Social Media", icon: Share2 },
+    ],
+  },
+  {
     label: "CRM",
     icon: Briefcase,
     prefix: "/crm",
@@ -150,6 +159,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     "Paid Media": false,
     Contenido: false,
     "Sitios Web": false,
+    "Social Media": false,
     CRM: false,
   });
 

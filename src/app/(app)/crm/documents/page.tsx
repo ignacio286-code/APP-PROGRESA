@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
-import { Plus, Save, Trash2, FileText, Edit2, X, Loader2 } from "lucide-react";
+import { Plus, Save, Trash2, FileText, Edit2, X, Loader2, Download, Upload, Link2 } from "lucide-react";
 
 const DEFAULT_TC = `Términos y Condiciones:
 Trabajo sujeto a un contrato por 6 meses renovables automáticamente por el mismo periodo. En caso de querer dar término al contrato, se debe avisar con 30 días de anticipación, vía correo electrónico, para servicio de Redes Sociales, SEO y SEM. Este contrato comienza a regir cuando se acepta la presente cotización.
@@ -21,8 +21,14 @@ interface Doc {
   content?: string;
   fileUrl?: string;
   fileType?: string;
+  fileData?: string;
+  fileName?: string;
   updatedAt: string;
 }
+
+const FILE_TYPE_ICON: Record<string, string> = {
+  text: "📝", pdf: "📄", word: "📘", link: "🔗",
+};
 
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -32,9 +38,12 @@ export default function DocumentsPage() {
   const [content, setContent] = useState("");
   const [fileUrl, setFileUrl] = useState("");
   const [fileType, setFileType] = useState("text");
+  const [fileData, setFileData] = useState<string | null>(null);
+  const [fileName, setFileName] = useState("");
   const [saving, setSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -46,72 +55,67 @@ export default function DocumentsPage() {
     let data: Doc[];
     try { data = JSON.parse(text); } catch { return; }
     setDocs(data);
-    // Auto-create T&C if no docs exist
     if (data.length === 0 && !initialized) {
       setInitialized(true);
       const r = await fetch("/api/crm/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "Términos y Condiciones", content: DEFAULT_TC, fileType: "text" }),
       });
       if (!r.ok) return;
-      try {
-        const doc = await r.json();
-        setDocs([doc]);
-        selectDoc(doc);
-      } catch { return; }
+      try { const doc = await r.json(); setDocs([doc]); selectDoc(doc); } catch { return; }
     } else if (data.length > 0 && !selected) {
       selectDoc(data[0]);
     }
   }
 
   function selectDoc(doc: Doc) {
-    setSelected(doc);
-    setTitle(doc.title);
-    setContent(doc.content || "");
-    setFileUrl(doc.fileUrl || "");
-    setFileType(doc.fileType || "text");
-    setEditing(false);
-    setIsNew(false);
+    setSelected(doc); setEditing(false); setTitle(doc.title);
+    setContent(doc.content || ""); setFileUrl(doc.fileUrl || "");
+    setFileType(doc.fileType || "text"); setFileData(doc.fileData || null);
+    setFileName(doc.fileName || ""); setIsNew(false);
   }
 
-  function newDoc() {
-    setSelected(null);
-    setTitle("");
-    setContent("");
-    setFileUrl("");
-    setFileType("text");
-    setEditing(true);
-    setIsNew(true);
+  function startNew() {
+    setSelected(null); setEditing(true); setTitle(""); setContent("");
+    setFileUrl(""); setFileType("text"); setFileData(null); setFileName(""); setIsNew(true);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext === "pdf") setFileType("pdf");
+    else if (ext === "doc" || ext === "docx") setFileType("word");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setFileData(result.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
-    try {
-      const body = { title, content: content || null, fileUrl: fileUrl || null, fileType };
-      if (isNew) {
-        const res = await fetch("/api/crm/documents", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const doc = await res.json();
-        setDocs(prev => [doc, ...prev]);
-        selectDoc(doc);
-      } else if (selected) {
-        const res = await fetch(`/api/crm/documents/${selected.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const doc = await res.json();
-        setDocs(prev => prev.map(d => d.id === doc.id ? doc : d));
-        selectDoc(doc);
-      }
-    } finally {
-      setSaving(false);
+    const body = {
+      title,
+      content: fileType === "text" ? content : undefined,
+      fileUrl: fileType === "link" ? fileUrl : undefined,
+      fileType, fileData: fileData || undefined,
+      fileName: fileName || undefined,
+    };
+    let doc: Doc;
+    if (isNew || !selected) {
+      const r = await fetch("/api/crm/documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      doc = await r.json();
+      setDocs(prev => [doc, ...prev]);
+    } else {
+      const r = await fetch(`/api/crm/documents/${selected.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      doc = await r.json();
+      setDocs(prev => prev.map(d => d.id === doc.id ? doc : d));
     }
+    setSaving(false); setEditing(false); setIsNew(false); setSelected(doc);
   }
 
   async function handleDelete(id: string) {
@@ -119,149 +123,169 @@ export default function DocumentsPage() {
     await fetch(`/api/crm/documents/${id}`, { method: "DELETE" });
     const remaining = docs.filter(d => d.id !== id);
     setDocs(remaining);
+    if (selected?.id === id) { setSelected(null); setEditing(false); }
     if (remaining.length > 0) selectDoc(remaining[0]);
-    else { setSelected(null); setTitle(""); setContent(""); }
+  }
+
+  function downloadFile(doc: Doc) {
+    if (!doc.fileData) return;
+    const mimeMap: Record<string, string> = { pdf: "application/pdf", word: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+    const mime = mimeMap[doc.fileType || ""] || "application/octet-stream";
+    const bytes = Uint8Array.from(atob(doc.fileData), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = doc.fileName || doc.title; a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Header title="Documentación Progresa" subtitle="Guarda documentos, términos y condiciones" />
-      <main className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 73px)" }}>
+      <Header title="Documentación Progresa" subtitle="Gestiona documentos, términos y archivos" />
+      <main className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 80px)" }}>
 
-        {/* Sidebar list */}
-        <div className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-3 border-b border-gray-100">
-            <button onClick={newDoc}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-black"
-              style={{ backgroundColor: "#FFC207" }}>
-              <Plus size={15} /> Nuevo documento
+        {/* Left panel */}
+        <div className="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-100">
+            <button onClick={startNew} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-black" style={{ backgroundColor: "#FFC207" }}>
+              <Plus size={15} /> Nuevo Documento
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {docs.length === 0 && <p className="text-xs text-gray-400 text-center py-8">Sin documentos</p>}
             {docs.map(doc => (
               <button key={doc.id} onClick={() => selectDoc(doc)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 flex items-start gap-2 hover:bg-gray-50 transition-colors ${selected?.id === doc.id ? "bg-yellow-50 border-l-2 border-l-yellow-400" : ""}`}>
-                <FileText size={15} className="shrink-0 mt-0.5 text-gray-400" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
-                  <p className="text-xs text-gray-400">{new Date(doc.updatedAt).toLocaleDateString("es-CL")}</p>
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition group ${selected?.id === doc.id ? "bg-yellow-50 border border-yellow-200" : "hover:bg-gray-50"}`}>
+                <div className="flex items-start gap-2">
+                  <span className="text-base shrink-0">{FILE_TYPE_ICON[doc.fileType || "text"] || "📝"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${selected?.id === doc.id ? "text-yellow-700" : "text-gray-800"}`}>{doc.title}</p>
+                    <p className="text-xs text-gray-400">{new Date(doc.updatedAt).toLocaleDateString("es-CL")}</p>
+                    {doc.fileName && <p className="text-xs text-blue-500 truncate">{doc.fileName}</p>}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
+                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 text-gray-400 transition">
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Editor */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {(selected || isNew) ? (
+        {/* Right panel */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {!selected && !editing ? (
+            <div className="flex-1 flex items-center justify-center text-center">
+              <div>
+                <FileText size={40} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-gray-400">Selecciona un documento o crea uno nuevo</p>
+              </div>
+            </div>
+          ) : (
             <>
-              {/* Editor toolbar */}
-              <div className="bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between gap-3">
+              <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 shrink-0 flex-wrap">
                 {editing ? (
-                  <input value={title} onChange={e => setTitle(e.target.value)}
-                    placeholder="Título del documento"
-                    className="flex-1 text-lg font-bold border-0 outline-none focus:ring-0 bg-transparent" />
+                  <>
+                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del documento"
+                      className="flex-1 text-lg font-semibold bg-transparent border-0 focus:outline-none text-gray-900 min-w-0" />
+                    <select value={fileType} onChange={e => { setFileType(e.target.value); setFileData(null); setFileName(""); }}
+                      className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none">
+                      <option value="text">📝 Texto</option>
+                      <option value="pdf">📄 PDF</option>
+                      <option value="word">📘 Word</option>
+                      <option value="link">🔗 Enlace</option>
+                    </select>
+                    <button onClick={handleSave} disabled={saving || !title.trim()}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black disabled:opacity-60"
+                      style={{ backgroundColor: "#FFC207" }}>
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {saving ? "Guardando..." : "Guardar"}
+                    </button>
+                    <button onClick={() => { setEditing(false); if (isNew) setSelected(null); }} className="p-1.5 rounded hover:bg-gray-100">
+                      <X size={16} className="text-gray-500" />
+                    </button>
+                  </>
                 ) : (
-                  <h2 className="text-lg font-bold text-gray-900 truncate">{title}</h2>
+                  <>
+                    <p className="flex-1 text-lg font-semibold text-gray-900 truncate">{selected?.title}</p>
+                    <span className="text-xs text-gray-400">{FILE_TYPE_ICON[selected?.fileType || "text"]} {selected?.fileType}</span>
+                    <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
+                      <Edit2 size={14} /> Editar
+                    </button>
+                    {selected?.fileData && (
+                      <button onClick={() => downloadFile(selected!)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">
+                        <Download size={14} /> Descargar
+                      </button>
+                    )}
+                  </>
                 )}
-                <div className="flex items-center gap-2 shrink-0">
-                  {!editing && (
-                    <button onClick={() => setEditing(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-                      <Edit2 size={13} /> Editar
-                    </button>
-                  )}
-                  {editing && (
-                    <>
-                      <button onClick={() => { if (!isNew && selected) selectDoc(selected); else { setIsNew(false); setEditing(false); } }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
-                        <X size={13} /> Cancelar
-                      </button>
-                      <button onClick={handleSave} disabled={saving}
-                        className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold text-black rounded-lg disabled:opacity-60"
-                        style={{ backgroundColor: "#FFC207" }}>
-                        {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                        Guardar
-                      </button>
-                    </>
-                  )}
-                  {!isNew && selected && (
-                    <button onClick={() => handleDelete(selected.id)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
               </div>
 
-              {/* Type selector */}
-              {editing && (
-                <div className="bg-gray-50 border-b border-gray-200 px-5 py-2 flex items-center gap-4">
-                  <span className="text-xs font-medium text-gray-500">Tipo:</span>
-                  {["text", "pdf", "word", "link"].map(t => (
-                    <label key={t} className="flex items-center gap-1.5 text-xs cursor-pointer">
-                      <input type="radio" name="fileType" value={t} checked={fileType === t}
-                        onChange={() => setFileType(t)} className="accent-yellow-400" />
-                      <span className="capitalize">{t === "link" ? "Enlace" : t === "text" ? "Texto" : t.toUpperCase()}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {/* Content area */}
-              <div className="flex-1 overflow-y-auto p-5">
-                {fileType === "text" ? (
-                  editing ? (
-                    <textarea value={content} onChange={e => setContent(e.target.value)}
-                      className="w-full h-full min-h-96 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none font-mono"
-                      placeholder="Escribe el contenido del documento..." />
-                  ) : (
-                    <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed min-h-96">
-                      {content || <span className="text-gray-400 italic">Sin contenido</span>}
-                    </div>
-                  )
-                ) : (
-                  <div className="space-y-4">
-                    {editing ? (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          {fileType === "link" ? "URL del enlace" : `URL del archivo ${fileType.toUpperCase()}`}
-                        </label>
-                        <input value={fileUrl} onChange={e => setFileUrl(e.target.value)}
-                          placeholder="https://drive.google.com/..."
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-                        <p className="text-xs text-gray-400 mt-1">Puedes pegar un enlace de Google Drive, Dropbox u otra fuente.</p>
+              <div className="flex-1 overflow-y-auto p-6">
+                {editing ? (
+                  <div className="max-w-3xl mx-auto space-y-4">
+                    {(fileType === "pdf" || fileType === "word") && (
+                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                        <Upload size={32} className="mx-auto mb-3 text-gray-300" />
+                        <p className="text-sm text-gray-500 mb-3">{fileType === "pdf" ? "Sube un archivo PDF" : "Sube un archivo Word (.docx)"}</p>
+                        {fileName && <p className="text-sm font-medium text-green-600 mb-3">✓ {fileName}</p>}
+                        <button onClick={() => fileRef.current?.click()}
+                          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700">
+                          {fileName ? "Cambiar archivo" : "Seleccionar archivo"}
+                        </button>
+                        <input ref={fileRef} type="file" accept={fileType === "pdf" ? ".pdf" : ".doc,.docx"} className="hidden" onChange={handleFileUpload} />
                       </div>
-                    ) : fileUrl ? (
-                      <div className="bg-white rounded-xl border border-gray-200 p-6">
-                        <div className="flex items-center gap-3 mb-3">
-                          <FileText size={24} className="text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">{title}</p>
-                            <p className="text-xs text-gray-400">{fileType.toUpperCase()}</p>
-                          </div>
+                    )}
+                    {fileType === "link" && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">URL del documento</label>
+                        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+                          <Link2 size={15} className="text-gray-400 shrink-0" />
+                          <input value={fileUrl} onChange={e => setFileUrl(e.target.value)} placeholder="https://drive.google.com/..."
+                            className="flex-1 text-sm focus:outline-none" />
                         </div>
-                        <a href={fileUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-black rounded-lg"
-                          style={{ backgroundColor: "#FFC207" }}>
-                          Abrir archivo
+                      </div>
+                    )}
+                    {fileType === "text" && (
+                      <textarea value={content} onChange={e => setContent(e.target.value)} rows={22}
+                        placeholder="Escribe el contenido del documento aquí..."
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none font-mono leading-relaxed" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="max-w-3xl mx-auto">
+                    {selected?.fileType === "text" && (
+                      <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed bg-white rounded-xl border border-gray-100 p-6">{selected.content}</pre>
+                    )}
+                    {(selected?.fileType === "pdf" || selected?.fileType === "word") && (
+                      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                        <span className="text-5xl">{FILE_TYPE_ICON[selected.fileType!]}</span>
+                        <p className="text-gray-700 font-semibold mt-4">{selected.fileName || selected.title}</p>
+                        <p className="text-sm text-gray-400 mt-1">Archivo {selected.fileType!.toUpperCase()} adjunto</p>
+                        {selected.fileData && (
+                          <button onClick={() => downloadFile(selected)} className="mt-4 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 mx-auto">
+                            <Download size={15} /> Descargar {selected.fileType!.toUpperCase()}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {selected?.fileType === "link" && selected.fileUrl && (
+                      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                        <span className="text-5xl">🔗</span>
+                        <p className="text-gray-700 font-semibold mt-4">{selected.title}</p>
+                        <a href={selected.fileUrl} target="_blank" rel="noopener noreferrer"
+                          className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100">
+                          <Link2 size={15} /> Abrir enlace
                         </a>
                       </div>
-                    ) : (
-                      <p className="text-gray-400 italic">Sin URL configurada. Edita para agregar.</p>
+                    )}
+                    {!selected?.content && !selected?.fileData && !selected?.fileUrl && (
+                      <div className="text-center py-16 text-gray-400">Sin contenido</div>
                     )}
                   </div>
                 )}
               </div>
             </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-center p-6">
-              <div>
-                <FileText size={48} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500 font-medium">Selecciona un documento</p>
-                <p className="text-sm text-gray-400 mt-1">o crea uno nuevo con el botón amarillo</p>
-              </div>
-            </div>
           )}
         </div>
       </main>

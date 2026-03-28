@@ -36,6 +36,8 @@ model Client {
   socialConnections     SocialConnection[]
   analyticsReports      AnalyticsReport[]
   reportSchedules       ReportSchedule[]
+  scheduledPosts        ScheduledPost[]
+  reportConfig          ReportConfig?
 }
 
 model ContentAsset {
@@ -345,6 +347,8 @@ model CrmDocument {
   content   String?  @db.Text
   fileUrl   String?
   fileType  String?  @default("text")
+  fileData  String?  @db.Text
+  fileName  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -364,6 +368,35 @@ model CrmHostingClient {
   hostingValue Float?
   paid         String?
   notes        String?
+  serviceId    String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model ScheduledPost {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform    String
+  content     String   @db.Text
+  mediaBase64 String?  @db.Text
+  mediaType   String?
+  scheduledAt DateTime
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ReportConfig {
+  id         String    @id @default(cuid())
+  clientId   String    @unique
+  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  email      String
+  dayOfMonth Int       @default(1)
+  emailText  String?   @db.Text
+  platforms  String    @default("facebook,instagram")
+  isActive   Boolean   @default(true)
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
