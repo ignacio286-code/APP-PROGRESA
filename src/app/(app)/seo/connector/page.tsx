@@ -7,7 +7,7 @@ import {
   Globe, Search, Pencil, ExternalLink, CheckCircle2,
   XCircle, Loader2, AlertCircle, Save, FileText,
   Sparkles, X, Check, ChevronDown, ChevronUp, ShoppingBag,
-  RefreshCw, Info, Copy,
+  RefreshCw, Info, Copy, Tag,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -178,10 +178,11 @@ export default function SeoConnectorPage() {
   const { activeClient } = useClient();
   const [pages, setPages] = useState<WpItem[]>([]);
   const [products, setProducts] = useState<WpItem[]>([]);
+  const [categories, setCategories] = useState<WpItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
-  const [tab, setTab] = useState<"pages" | "products">("pages");
+  const [tab, setTab] = useState<"pages" | "products" | "categories">("pages");
 
   // Edit modal (full screen)
   const [editing, setEditing] = useState<WpItem | null>(null);
@@ -218,8 +219,8 @@ export default function SeoConnectorPage() {
   const [showSetup, setShowSetup] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Mass product positioning
-  interface MassProductStatus {
+  // Mass product/category positioning
+  interface MassItemStatus {
     id: number;
     name: string;
     status: "pending" | "processing" | "done" | "error";
@@ -229,11 +230,17 @@ export default function SeoConnectorPage() {
     focusKeyword?: string;
   }
   const [massModalOpen, setMassModalOpen] = useState(false);
-  const [massProgress, setMassProgress] = useState<MassProductStatus[]>([]);
+  const [massProgress, setMassProgress] = useState<MassItemStatus[]>([]);
   const [massRunning, setMassRunning] = useState(false);
   const [massDone, setMassDone] = useState(false);
 
-  const items = tab === "pages" ? pages : products;
+  // Mass category positioning
+  const [massCatModalOpen, setMassCatModalOpen] = useState(false);
+  const [massCatProgress, setMassCatProgress] = useState<MassItemStatus[]>([]);
+  const [massCatRunning, setMassCatRunning] = useState(false);
+  const [massCatDone, setMassCatDone] = useState(false);
+
+  const items = tab === "pages" ? pages : tab === "products" ? products : categories;
 
   // ── Meta cache (localStorage) ──────────────────────────────────────────────
   type MetaCache = Record<string, { seoTitle: string; metaDescription: string; focusKeyword: string; schema: string; content: string }>;
@@ -300,9 +307,10 @@ export default function SeoConnectorPage() {
     if (!activeClient?.wpUrl) { setError("Configura WordPress en el cliente activo."); return; }
     setLoading(true); setError(null); setSelected(new Set());
     try {
-      const [pagesRes, productsRes] = await Promise.allSettled([
+      const [pagesRes, productsRes, catsRes] = await Promise.allSettled([
         wpFetch("pages?per_page=100&context=edit&_fields=id,title,link,status,meta"),
         wpFetch("products?per_page=100&_fields=id,name,permalink,status", "wc/v3"),
+        wpFetch("products/categories?per_page=100&_fields=id,name,slug,count", "wc/v3"),
       ]);
       if (pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -329,6 +337,18 @@ export default function SeoConnectorPage() {
         }));
         setProducts(mergeWithCache(raw));
       } else { setProducts([]); }
+      if (catsRes.status === "fulfilled" && Array.isArray(catsRes.value)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const raw = catsRes.value.map((c: any) => ({
+          id: c.id,
+          title: c.name || "(sin nombre)",
+          link: c.slug ? `${activeClient?.wpUrl?.replace(/\/$/, "")}/product-category/${c.slug}/` : "",
+          status: "publish",
+          type: "product" as const,
+          seoTitle: "", metaDescription: "", focusKeyword: "", schema: "", content: "",
+        }));
+        setCategories(raw);
+      } else { setCategories([]); }
       setConnected(true);
     } catch (err) { setError(String(err)); }
     finally { setLoading(false); }
@@ -632,6 +652,57 @@ export default function SeoConnectorPage() {
     }
   }
 
+  // ── Mass category positioning ──────────────────────────────────────────────
+  async function massPositionCategories() {
+    if (!activeClient?.wpUrl || !activeClient?.wpUsername || !activeClient?.wpAppPassword) return;
+    const selectedCats = categories.filter((c) => selected.has(c.id));
+    if (!selectedCats.length) return;
+
+    setMassCatRunning(true);
+    setMassCatDone(false);
+    setMassCatProgress(selectedCats.map((c) => ({ id: c.id, name: c.title, status: "pending" })));
+
+    const catsInput = selectedCats.map((c) => ({ id: c.id, name: c.title }));
+
+    try {
+      for (let i = 0; i < catsInput.length; i++) {
+        const cat = catsInput[i];
+        setMassCatProgress((prev) => prev.map((c) => c.id === cat.id ? { ...c, status: "processing" } : c));
+        try {
+          const res = await fetch("/api/seo/mass-categories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              categories: [cat],
+              wpUrl: activeClient.wpUrl,
+              wpUsername: activeClient.wpUsername,
+              wpAppPassword: activeClient.wpAppPassword,
+              clientName: activeClient.name,
+            }),
+          });
+          const data = await res.json();
+          const result = data.results?.[0];
+          if (result?.success) {
+            setMassCatProgress((prev) => prev.map((c) =>
+              c.id === cat.id ? { ...c, status: "done", metaTitle: result.metaTitle, metaDescription: result.metaDescription, focusKeyword: result.focusKeyword } : c
+            ));
+          } else {
+            setMassCatProgress((prev) => prev.map((c) =>
+              c.id === cat.id ? { ...c, status: "error", error: result?.error || "Error desconocido" } : c
+            ));
+          }
+        } catch (err) {
+          setMassCatProgress((prev) => prev.map((c) =>
+            c.id === cat.id ? { ...c, status: "error", error: String(err) } : c
+          ));
+        }
+      }
+    } finally {
+      setMassCatRunning(false);
+      setMassCatDone(true);
+    }
+  }
+
   // ── Selection ─────────────────────────────────────────────────────────────
   function toggleSelect(id: number) {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -790,13 +861,16 @@ export default function SeoConnectorPage() {
         {connected && (
           <>
             {/* Tabs */}
-            <div className="flex gap-2">
-              {(["pages", "products"] as const).map((t) => (
-                <button key={t} onClick={() => { setTab(t); setSelected(new Set()); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === t ? "text-black" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                  style={tab === t ? { backgroundColor: "#FFC207" } : {}}>
-                  {t === "pages" ? <FileText size={14} /> : <ShoppingBag size={14} />}
-                  {t === "pages" ? `Páginas (${pages.length})` : `Productos (${products.length})`}
+            <div className="flex gap-2 flex-wrap">
+              {([
+                { key: "pages", label: `Páginas (${pages.length})`, icon: <FileText size={14} /> },
+                { key: "products", label: `Productos (${products.length})`, icon: <ShoppingBag size={14} /> },
+                { key: "categories", label: `Categorías (${categories.length})`, icon: <Tag size={14} /> },
+              ] as const).map(({ key, label, icon }) => (
+                <button key={key} onClick={() => { setTab(key); setSelected(new Set()); }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === key ? "text-black" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  style={tab === key ? { backgroundColor: "#FFC207" } : {}}>
+                  {icon}{label}
                 </button>
               ))}
             </div>
@@ -854,7 +928,7 @@ export default function SeoConnectorPage() {
                     );
                   })}
                   {items.length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No se encontraron {tab === "pages" ? "páginas" : "productos"}</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No se encontraron {tab === "pages" ? "páginas" : tab === "products" ? "productos" : "categorías"}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -873,6 +947,27 @@ export default function SeoConnectorPage() {
                   </div>
                 </div>
                 <button onClick={() => { setMassModalOpen(true); setMassProgress([]); setMassDone(false); }}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-black shrink-0"
+                  style={{ backgroundColor: "#FFC207" }}>
+                  <Sparkles size={14} />
+                  Posicionar masivamente ({selected.size})
+                </button>
+              </div>
+            )}
+
+            {/* Mass Category Positioning Button */}
+            {tab === "categories" && selected.size > 0 && (
+              <div className="bg-white rounded-xl border border-yellow-300 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-yellow-100">
+                    <Tag size={16} style={{ color: "#b8860b" }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">Posicionamiento Masivo de Categorías</p>
+                    <p className="text-xs text-gray-500">Genera SEO completo + RankMath para {selected.size} categoría{selected.size !== 1 ? "s" : ""} usando su nombre como keyword</p>
+                  </div>
+                </div>
+                <button onClick={() => { setMassCatModalOpen(true); setMassCatProgress([]); setMassCatDone(false); }}
                   className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-black shrink-0"
                   style={{ backgroundColor: "#FFC207" }}>
                   <Sparkles size={14} />
@@ -1060,6 +1155,98 @@ export default function SeoConnectorPage() {
                 )}
                 {massDone && (
                   <button onClick={() => { setMassModalOpen(false); setSelected(new Set()); }}
+                    className="px-5 py-2 rounded-lg text-sm font-semibold text-black"
+                    style={{ backgroundColor: "#FFC207" }}>
+                    Cerrar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mass Category Positioning Modal ── */}
+      {massCatModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="font-bold text-gray-900">Posicionamiento Masivo de Categorías</p>
+                <p className="text-xs text-gray-400 mt-0.5">El nombre de la categoría se usa como palabra clave principal</p>
+              </div>
+              {!massCatRunning && (
+                <button onClick={() => setMassCatModalOpen(false)} className="p-1.5 rounded-lg hover:bg-gray-100">
+                  <X size={16} className="text-gray-500" />
+                </button>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-2">
+              {massCatProgress.length === 0 ? (
+                categories.filter((c) => selected.has(c.id)).map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg">
+                    <Tag size={14} className="text-gray-400 shrink-0" />
+                    <p className="text-sm text-gray-800 flex-1 truncate">{c.title}</p>
+                    <span className="text-xs text-gray-400">pendiente</span>
+                  </div>
+                ))
+              ) : (
+                massCatProgress.map((c) => (
+                  <div key={c.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${
+                    c.status === "done" ? "bg-green-50 border-green-200" :
+                    c.status === "error" ? "bg-red-50 border-red-200" :
+                    c.status === "processing" ? "bg-yellow-50 border-yellow-200" :
+                    "bg-gray-50 border-gray-200"
+                  }`}>
+                    <div className="mt-0.5 shrink-0">
+                      {c.status === "done" && <Check size={14} className="text-green-600" />}
+                      {c.status === "error" && <XCircle size={14} className="text-red-500" />}
+                      {c.status === "processing" && <Loader2 size={14} className="animate-spin text-yellow-600" />}
+                      {c.status === "pending" && <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
+                      {c.status === "done" && c.focusKeyword && (
+                        <p className="text-xs text-green-600 mt-0.5">Keyword: {c.focusKeyword}</p>
+                      )}
+                      {c.status === "error" && c.error && (
+                        <p className="text-xs text-red-500 mt-0.5 truncate">{c.error}</p>
+                      )}
+                      {c.status === "processing" && (
+                        <p className="text-xs text-yellow-600 mt-0.5">Generando SEO y actualizando WordPress...</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              {massCatDone && (
+                <p className="text-sm text-green-600 font-medium">
+                  ✓ {massCatProgress.filter((c) => c.status === "done").length}/{massCatProgress.length} categorías posicionadas
+                </p>
+              )}
+              {!massCatDone && <div />}
+              <div className="flex gap-2 ml-auto">
+                {!massCatRunning && !massCatDone && (
+                  <button onClick={() => setMassCatModalOpen(false)} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">Cancelar</button>
+                )}
+                {!massCatRunning && !massCatDone && (
+                  <button onClick={massPositionCategories}
+                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-black"
+                    style={{ backgroundColor: "#FFC207" }}>
+                    <Sparkles size={14} />
+                    Iniciar posicionamiento
+                  </button>
+                )}
+                {massCatRunning && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 size={14} className="animate-spin" />
+                    Procesando {massCatProgress.filter((c) => c.status === "done").length}/{massCatProgress.length}...
+                  </div>
+                )}
+                {massCatDone && (
+                  <button onClick={() => { setMassCatModalOpen(false); setSelected(new Set()); }}
                     className="px-5 py-2 rounded-lg text-sm font-semibold text-black"
                     style={{ backgroundColor: "#FFC207" }}>
                     Cerrar
