@@ -415,40 +415,34 @@ export default function SeoConnectorPage() {
     if (!editing) return;
     setSaving(true); setSaveMsg("");
     try {
-      // Products: WP REST uses "product" (singular, WC post type); pages uses "pages"
-      const wpType = editing.type === "product" ? "product" : "pages";
+      const rankMathMeta = {
+        rank_math_title:               editing.seoTitle.slice(0, 60),
+        rank_math_description:         editing.metaDescription.slice(0, 160),
+        rank_math_focus_keyword:       editing.focusKeyword,
+        rank_math_rich_snippet:        editing.schema,
+        rank_math_og_title:            editing.seoTitle.slice(0, 60),
+        rank_math_og_description:      editing.metaDescription.slice(0, 160),
+        rank_math_twitter_title:       editing.seoTitle.slice(0, 60),
+        rank_math_twitter_description: editing.metaDescription.slice(0, 160),
+      };
 
-      // Save RankMath meta + slug + content via wp/v2
-      const saved = await wpFetch(`${wpType}/${editing.id}`, "wp/v2", "POST", {
-        ...(editing.content ? { content: editing.content } : {}),
-        ...(editing.slug ? { slug: editing.slug } : {}),
-        meta: {
-          rank_math_title: editing.seoTitle,
-          rank_math_description: editing.metaDescription,
-          rank_math_focus_keyword: editing.focusKeyword,
-          rank_math_rich_snippet: editing.schema,
-          rank_math_og_title: editing.seoTitle,
-          rank_math_og_description: editing.metaDescription,
-          rank_math_twitter_title: editing.seoTitle,
-          rank_math_twitter_description: editing.metaDescription,
-        },
-      });
-
-      // For products: also update slug via WooCommerce endpoint
-      if (editing.type === "product" && editing.slug) {
-        try {
-          await wpFetch(`products/${editing.id}`, "wc/v3", "POST", { slug: editing.slug });
-        } catch { /* WC slug update failed silently */ }
+      if (editing.type === "product") {
+        // Products: use wc/v3 with meta_data — writes RankMath fields WITHOUT needing PHP snippets
+        await wpFetch(`products/${editing.id}`, "wc/v3", "POST", {
+          ...(editing.content ? { description: editing.content } : {}),
+          ...(editing.slug ? { slug: editing.slug } : {}),
+          meta_data: Object.entries(rankMathMeta).map(([key, value]) => ({ key, value })),
+        });
+      } else {
+        // Pages: wp/v2 works natively with RankMath meta for standard post types
+        await wpFetch(`pages/${editing.id}`, "wp/v2", "POST", {
+          ...(editing.content ? { content: editing.content } : {}),
+          ...(editing.slug ? { slug: editing.slug } : {}),
+          meta: rankMathMeta,
+        });
       }
 
-      // Verify meta was actually written (Rank Math free may not register product meta for REST)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const returnedMeta: Record<string, any> = saved?.meta || {};
-      const metaWritten =
-        returnedMeta.rank_math_title !== undefined ||
-        returnedMeta.rank_math_focus_keyword !== undefined;
-
-      // Persist to localStorage cache so data survives page refresh
+      // Persist to localStorage cache
       writeCache(editing.id, editing.type, {
         seoTitle: editing.seoTitle, metaDescription: editing.metaDescription,
         focusKeyword: editing.focusKeyword, schema: editing.schema, content: editing.content,
@@ -456,12 +450,8 @@ export default function SeoConnectorPage() {
       const updater = (prev: WpItem[]) => prev.map((it) => it.id === editing.id ? { ...it, ...editing } : it);
       if (editing.type === "page") setPages(updater); else setProducts(updater);
 
-      if (!metaWritten && editing.type === "product") {
-        setSaveMsg("⚠️ Contenido guardado, pero Rank Math no acepta meta via REST para productos. Activa la REST API en Rank Math o usa Rank Math PRO.");
-      } else {
-        setSaveMsg("✓ Guardado en WordPress");
-        setTimeout(() => { setSaveMsg(""); setEditing(null); }, 2000);
-      }
+      setSaveMsg("✓ Guardado en WordPress");
+      setTimeout(() => { setSaveMsg(""); setEditing(null); }, 2000);
     } catch (err) { setSaveMsg("Error: " + String(err)); }
     finally { setSaving(false); }
   }
@@ -605,19 +595,23 @@ export default function SeoConnectorPage() {
       try {
         const item = items.find((i) => i.id === result.id);
         if (!item) continue;
-        const wpType = item.type === "product" ? "product" : "pages";
-        await wpFetch(`${wpType}/${result.id}`, "wp/v2", "POST", {
-          meta: {
-            rank_math_title: result.seoTitle,
-            rank_math_description: result.metaDescription,
-            rank_math_focus_keyword: result.focusKeyword,
-            rank_math_rich_snippet: result.schema,
-            rank_math_og_title: result.seoTitle,
-            rank_math_og_description: result.metaDescription,
-            rank_math_twitter_title: result.seoTitle,
-            rank_math_twitter_description: result.metaDescription,
-          },
-        });
+        const rankMeta = {
+          rank_math_title:               result.seoTitle.slice(0, 60),
+          rank_math_description:         result.metaDescription.slice(0, 160),
+          rank_math_focus_keyword:       result.focusKeyword,
+          rank_math_rich_snippet:        result.schema,
+          rank_math_og_title:            result.seoTitle.slice(0, 60),
+          rank_math_og_description:      result.metaDescription.slice(0, 160),
+          rank_math_twitter_title:       result.seoTitle.slice(0, 60),
+          rank_math_twitter_description: result.metaDescription.slice(0, 160),
+        };
+        if (item.type === "product") {
+          await wpFetch(`products/${result.id}`, "wc/v3", "POST", {
+            meta_data: Object.entries(rankMeta).map(([key, value]) => ({ key, value })),
+          });
+        } else {
+          await wpFetch(`pages/${result.id}`, "wp/v2", "POST", { meta: rankMeta });
+        }
         const updater = (prev: WpItem[]) => prev.map((it) => it.id === result.id ? { ...it, ...result } : it);
         if (item.type === "page") setPages(updater); else setProducts(updater);
         setAiResults((prev) => prev.map((r) => r.id === result.id ? { ...r, applied: true } : r));
@@ -805,8 +799,8 @@ export default function SeoConnectorPage() {
                   <Info size={16} className="text-blue-600" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-gray-900 text-sm">Configuración requerida para guardar en productos WooCommerce</p>
-                  <p className="text-xs text-gray-400">Activa el snippet en WordPress para que Rank Math acepte cambios vía REST API</p>
+                  <p className="font-semibold text-gray-900 text-sm">Snippet opcional para taxonomías (categorías WooCommerce)</p>
+                  <p className="text-xs text-gray-400">Productos y páginas no requieren snippet. Solo necesario para guardar Rank Math en categorías vía wp/v2</p>
                 </div>
               </div>
               {showSetup ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}

@@ -19,24 +19,30 @@ function toSlug(text: string): string {
     .trim();
 }
 
+function truncate(text: string, max: number): string {
+  if (!text) return "";
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + "…";
+}
+
 async function generateCategorySEO(name: string, clientName?: string) {
   const slugBase = toSlug(name);
-  const prompt = `Eres un experto en SEO para ecommerce. Genera contenido SEO completo para esta categoría de productos en español. Cumple con todos los criterios de Rank Math.
+  const prompt = `Eres experto en SEO para ecommerce. Genera SEO completo en español cumpliendo EXACTAMENTE los límites de caracteres.
 
 Categoría: "${name}"
 Tienda: ${clientName || "la tienda"}
-Slug sugerido como base: "${slugBase}"
+Slug base: "${slugBase}"
 
-Responde SOLO con este JSON (sin markdown, sin texto extra):
+Responde SOLO con JSON válido (sin markdown):
 {
-  "metaTitle": "Título SEO de 50-60 caracteres. Incluye la keyword al inicio y power word. Ej: 'Transpaletas Eléctricas en Chile | Mejor Precio'",
-  "metaDescription": "Meta descripción de 140-160 caracteres. Incluye la keyword, beneficios y CTA. Ej: 'Encuentra las mejores transpaletas eléctricas en Chile. Amplio stock, garantía y envío rápido. ¡Cotiza hoy!'",
-  "focusKeyword": "keyword principal exacta de 2-4 palabras para esta categoría",
-  "slug": "url-seo-de-la-categoria-con-keyword",
-  "ogTitle": "Título para redes sociales",
-  "ogDescription": "Descripción para redes sociales (140-160 chars)",
-  "description": "Descripción HTML de 200-350 palabras para la categoría. Estructura: párrafo introductorio con la keyword, <h2> con variación de keyword, párrafo describiendo los productos, <ul> con 4-5 beneficios de comprar en esta categoría. La keyword debe aparecer al menos 4 veces."
-}`;
+  "metaTitle": "EXACTAMENTE entre 50-60 caracteres. Keyword al inicio + power word. Ej: 'Tornillos para Madera | Gran Variedad Chile'",
+  "metaDescription": "EXACTAMENTE entre 140-155 caracteres. Keyword + beneficio + CTA. Ej: 'Los mejores tornillos para madera en Chile. Gran variedad de medidas y materiales. Envío rápido y garantía. ¡Compra hoy!'",
+  "focusKeyword": "keyword de 2-4 palabras, la más buscada para esta categoría",
+  "slug": "keyword-de-la-categoria-en-guiones",
+  "description": "<p>Párrafo introductorio con keyword (2-3 oraciones).</p><h2>Los mejores [keyword]</h2><p>Párrafo describiendo variedad y beneficios con keyword.</p><ul><li>Beneficio 1</li><li>Beneficio 2</li><li>Beneficio 3</li><li>Beneficio 4</li></ul><p>CTA final con keyword.</p>"
+}
+
+CRÍTICO: metaTitle debe tener entre 50-60 caracteres. metaDescription debe tener entre 140-155 caracteres. Cuenta los caracteres antes de responder.`;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -49,7 +55,15 @@ Responde SOLO con este JSON (sin markdown, sin texto extra):
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No se pudo parsear el JSON de la IA");
-  return JSON.parse(cleaned.slice(start, end + 1));
+  const seo = JSON.parse(cleaned.slice(start, end + 1));
+
+  // Hard-enforce character limits
+  seo.metaTitle = truncate(seo.metaTitle || name, 60);
+  seo.metaDescription = truncate(seo.metaDescription || "", 160);
+  seo.focusKeyword = (seo.focusKeyword || name).slice(0, 100);
+  seo.slug = seo.slug ? toSlug(seo.slug) : toSlug(seo.focusKeyword || name);
+
+  return seo;
 }
 
 async function wpDirect(
@@ -102,30 +116,20 @@ export async function POST(req: NextRequest) {
         // 1. Generate complete SEO content with AI
         const seo = await generateCategorySEO(cat.name, clientName);
 
-        const slug = seo.slug || toSlug(seo.focusKeyword || cat.name);
-
-        // 2. Update WooCommerce category: description and slug
+        // 2. Update WooCommerce category via wc/v3 — meta_data writes RankMath fields directly
         await wpDirect(wpUrl, wpUsername, wpAppPassword, "wc/v3", `products/categories/${cat.id}`, "PUT", {
           description: seo.description,
-          slug,
+          slug: seo.slug,
+          meta_data: [
+            { key: "rank_math_title",               value: seo.metaTitle },
+            { key: "rank_math_description",         value: seo.metaDescription },
+            { key: "rank_math_focus_keyword",       value: seo.focusKeyword },
+            { key: "rank_math_og_title",            value: seo.metaTitle },
+            { key: "rank_math_og_description",      value: seo.metaDescription },
+            { key: "rank_math_twitter_title",       value: seo.metaTitle },
+            { key: "rank_math_twitter_description", value: seo.metaDescription },
+          ],
         });
-
-        // 3. Update RankMath meta for taxonomy term via wp/v2 (requires PHP snippet)
-        try {
-          await wpDirect(wpUrl, wpUsername, wpAppPassword, "wp/v2", `product_cat/${cat.id}`, "POST", {
-            meta: {
-              rank_math_title: seo.metaTitle,
-              rank_math_description: seo.metaDescription,
-              rank_math_focus_keyword: seo.focusKeyword || cat.name,
-              rank_math_og_title: seo.ogTitle || seo.metaTitle,
-              rank_math_og_description: seo.ogDescription || seo.metaDescription,
-              rank_math_twitter_title: seo.ogTitle || seo.metaTitle,
-              rank_math_twitter_description: seo.ogDescription || seo.metaDescription,
-            },
-          });
-        } catch {
-          // RankMath term meta snippet may not be installed — description + slug still saved
-        }
 
         results.push({
           id: cat.id,
@@ -133,8 +137,8 @@ export async function POST(req: NextRequest) {
           success: true,
           metaTitle: seo.metaTitle,
           metaDescription: seo.metaDescription,
-          focusKeyword: seo.focusKeyword || cat.name,
-          slug,
+          focusKeyword: seo.focusKeyword,
+          slug: seo.slug,
         });
       } catch (err) {
         results.push({
