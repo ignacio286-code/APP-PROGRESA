@@ -6,6 +6,7 @@ import { useClient } from "@/lib/client-context";
 import {
   Upload, Loader2, AlertCircle, CheckCircle2, ChevronRight,
   ShoppingBag, FileSpreadsheet, Package, Send, Download, RefreshCw,
+  FileDown,
 } from "lucide-react";
 
 interface Product {
@@ -35,12 +36,16 @@ export default function EcommerceSitePage() {
   const [generating, setGenerating] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"import" | "generate">("import");
+  const [tab, setTab] = useState<"import" | "generate" | "export">("import");
 
   // For AI store structure generation
   const [storeDesc, setStoreDesc] = useState("");
   const [storeType, setStoreType] = useState("tienda general");
   const [generatedStructure, setGeneratedStructure] = useState<Record<string, unknown> | null>(null);
+
+  // Export
+  const [exportProducts, setExportProducts] = useState<Record<string, unknown>[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   const hasWp = !!(activeClient?.wpUrl && activeClient?.wpUsername && activeClient?.wpAppPassword);
 
@@ -173,6 +178,59 @@ export default function EcommerceSitePage() {
     }
   }
 
+  async function fetchExportProducts() {
+    if (!hasWp) return;
+    setExporting(true);
+    try {
+      let page = 1;
+      const all: Record<string, unknown>[] = [];
+      while (true) {
+        const res = await fetch("/api/wordpress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wpUrl: activeClient!.wpUrl,
+            wpUsername: activeClient!.wpUsername,
+            wpAppPassword: activeClient!.wpAppPassword,
+            endpoint: `products?per_page=100&page=${page}&_fields=id,name,description,short_description,regular_price,sale_price,sku,stock_quantity,categories,permalink,status`,
+            apiNamespace: "wc/v3",
+            method: "GET",
+          }),
+        });
+        const json = await res.json();
+        const data: Record<string, unknown>[] = json._data || json;
+        if (!Array.isArray(data) || data.length === 0) break;
+        all.push(...data);
+        if (data.length < 100) break;
+        page++;
+      }
+      setExportProducts(all);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function downloadCSV() {
+    if (!exportProducts.length) return;
+    const cols = ["id", "name", "regular_price", "sale_price", "sku", "stock_quantity", "categories", "status", "permalink"];
+    const header = cols.join(",");
+    const rows = exportProducts.map(p => cols.map(col => {
+      let val = p[col];
+      if (col === "categories" && Array.isArray(val)) {
+        val = (val as { name: string }[]).map(c => c.name).join("|");
+      }
+      return `"${String(val ?? "").replace(/"/g, '""')}"`;
+    }).join(","));
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `productos-woocommerce-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
       <Header title="Tienda WooCommerce con IA" subtitle="Configura tu tienda e importa productos masivamente" />
@@ -191,14 +249,15 @@ export default function EcommerceSitePage() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[
-            { key: "import", label: "Importar productos (Excel)", icon: FileSpreadsheet },
-            { key: "generate", label: "Generar estructura con IA", icon: ShoppingBag },
+            { key: "import", label: "Importar (Excel)", icon: FileSpreadsheet },
+            { key: "generate", label: "Generar con IA", icon: ShoppingBag },
+            { key: "export", label: "Exportar productos", icon: FileDown },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setTab(key as "import" | "generate")}
+              onClick={() => setTab(key as "import" | "generate" | "export")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 tab === key ? "text-black" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
@@ -427,6 +486,83 @@ export default function EcommerceSitePage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Export tab */}
+        {tab === "export" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-1">Exportar productos WooCommerce</h3>
+              <p className="text-sm text-gray-500 mb-4">Descarga todos los productos de tu tienda WooCommerce en formato CSV.</p>
+              {!hasWp ? (
+                <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <AlertCircle size={16} className="text-orange-500 shrink-0" />
+                  <p className="text-sm text-orange-700">Configura las credenciales de WordPress en el cliente activo.</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={fetchExportProducts} disabled={exporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 hover:bg-gray-50 disabled:opacity-50">
+                    {exporting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    {exporting ? "Cargando productos..." : "Cargar productos desde WooCommerce"}
+                  </button>
+                  {exportProducts.length > 0 && (
+                    <button onClick={downloadCSV}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black"
+                      style={{ backgroundColor: "#FFC207" }}>
+                      <FileDown size={14} />
+                      Descargar CSV ({exportProducts.length} productos)
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {exportProducts.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">{exportProducts.length} productos</p>
+                  <span className="text-xs text-gray-400">Vista previa — primeros 50</span>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 border-b border-gray-100 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">ID</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">Nombre</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">Precio</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">SKU</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">Stock</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">Categorías</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-semibold">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exportProducts.slice(0, 50).map((p, i) => (
+                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-400">{String(p.id)}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800 max-w-[200px] truncate">{String(p.name)}</td>
+                          <td className="px-3 py-2 text-gray-700">${String(p.regular_price || p.sale_price || "—")}</td>
+                          <td className="px-3 py-2 text-gray-400 font-mono">{String(p.sku || "—")}</td>
+                          <td className="px-3 py-2">{String(p.stock_quantity ?? "—")}</td>
+                          <td className="px-3 py-2 text-gray-500">
+                            {Array.isArray(p.categories)
+                              ? (p.categories as { name: string }[]).map(c => c.name).join(", ")
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs ${p.status === "publish" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                              {String(p.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await res.json();
+    const total = res.headers.get("X-WP-Total");
+    const totalPages = res.headers.get("X-WP-TotalPages");
+    // Forward pagination headers as _meta so callers can paginate
+    if (total || totalPages) {
+      return NextResponse.json({ _data: data, _total: parseInt(total || "0"), _totalPages: parseInt(totalPages || "0") });
+    }
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

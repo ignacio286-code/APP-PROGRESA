@@ -241,6 +241,14 @@ export default function SeoConnectorPage() {
   const [massCatRunning, setMassCatRunning] = useState(false);
   const [massCatDone, setMassCatDone] = useState(false);
 
+  // Products pagination + filter
+  const [productPage, setProductPage] = useState(1);
+  const [productPerPage, setProductPerPage] = useState(100);
+  const [productTotal, setProductTotal] = useState(0);
+  const [productCategoryFilter, setProductCategoryFilter] = useState<number | "">("");
+  const [productSearch, setProductSearch] = useState("");
+  const [productLoadingPage, setProductLoadingPage] = useState(false);
+
   const items = tab === "pages" ? pages : tab === "products" ? products : categories;
 
   // ── Meta cache (localStorage) ──────────────────────────────────────────────
@@ -289,7 +297,30 @@ export default function SeoConnectorPage() {
       }),
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Error WP"); }
-    return res.json();
+    const json = await res.json();
+    // Proxy wraps collection responses with pagination meta (_data, _total, _totalPages)
+    return json._data !== undefined ? json._data : json;
+  }
+
+  // wpFetch with pagination metadata
+  async function wpFetchPaged(endpoint: string, apiNamespace = "wp/v2") {
+    if (!activeClient) return { data: [], total: 0, totalPages: 0 };
+    const res = await fetch("/api/wordpress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wpUrl: activeClient.wpUrl,
+        wpUsername: activeClient.wpUsername,
+        wpAppPassword: activeClient.wpAppPassword,
+        endpoint, apiNamespace, method: "GET",
+      }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Error WP"); }
+    const json = await res.json();
+    if (json._data !== undefined) {
+      return { data: json._data, total: json._total as number, totalPages: json._totalPages as number };
+    }
+    return { data: Array.isArray(json) ? json : [json], total: 0, totalPages: 1 };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -314,14 +345,40 @@ export default function SeoConnectorPage() {
       .trim();
   }
 
+  // ── Load products (supports pagination + category filter) ─────────────────
+  async function loadProducts(page = 1, perPage = 100, categoryId: number | "" = "") {
+    if (!activeClient?.wpUrl) return;
+    setProductLoadingPage(true);
+    try {
+      let endpoint = `products?per_page=${perPage}&page=${page}&_fields=id,name,permalink,status,categories`;
+      if (categoryId) endpoint += `&category=${categoryId}`;
+      const { data: rawProducts, total } = await wpFetchPaged(endpoint, "wc/v3");
+      if (Array.isArray(rawProducts)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const raw = rawProducts.map((p: any) => ({
+          id: p.id,
+          slug: p.slug || "",
+          title: p.name || "(sin nombre)",
+          link: p.permalink || "",
+          status: p.status || "publish",
+          type: "product" as const,
+          seoTitle: "", metaDescription: "", focusKeyword: "", schema: "", content: "",
+        }));
+        setProducts(mergeWithCache(raw));
+        setProductTotal(total || raw.length);
+        setProductPage(page);
+      }
+    } catch { /* ignore */ }
+    finally { setProductLoadingPage(false); }
+  }
+
   // ── Connect ───────────────────────────────────────────────────────────────
   async function connect() {
     if (!activeClient?.wpUrl) { setError("Configura WordPress en el cliente activo."); return; }
     setLoading(true); setError(null); setSelected(new Set());
     try {
-      const [pagesRes, productsRes, catsRes] = await Promise.allSettled([
+      const [pagesRes, catsRes] = await Promise.allSettled([
         wpFetch("pages?per_page=100&context=edit&_fields=id,title,link,status,meta"),
-        wpFetch("products?per_page=100&_fields=id,name,permalink,status", "wc/v3"),
         wpFetch("products/categories?per_page=100&_fields=id,name,slug,count", "wc/v3"),
       ]);
       if (pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value)) {
@@ -338,19 +395,6 @@ export default function SeoConnectorPage() {
         }));
         setPages(mergeWithCache(raw));
       }
-      if (productsRes.status === "fulfilled" && Array.isArray(productsRes.value)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const raw = productsRes.value.map((p: any) => ({
-          id: p.id,
-          slug: p.slug || "",
-          title: p.name || "(sin nombre)",
-          link: p.permalink || "",
-          status: p.status || "publish",
-          type: "product" as const,
-          seoTitle: "", metaDescription: "", focusKeyword: "", schema: "", content: "",
-        }));
-        setProducts(mergeWithCache(raw));
-      } else { setProducts([]); }
       if (catsRes.status === "fulfilled" && Array.isArray(catsRes.value)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const raw = catsRes.value.map((c: any) => ({
@@ -365,6 +409,8 @@ export default function SeoConnectorPage() {
         setCategories(raw);
       } else { setCategories([]); }
       setConnected(true);
+      // Load first page of products separately (with pagination support)
+      await loadProducts(1, productPerPage, productCategoryFilter);
     } catch (err) { setError(String(err)); }
     finally { setLoading(false); }
   }
@@ -916,6 +962,54 @@ export default function SeoConnectorPage() {
               ))}
             </div>
 
+            {/* Products filter bar */}
+            {tab === "products" && (
+              <div className="flex flex-wrap items-center gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    placeholder="Filtrar productos..."
+                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                {categories.length > 0 && (
+                  <select
+                    value={productCategoryFilter}
+                    onChange={async e => {
+                      const val = e.target.value === "" ? "" : parseInt(e.target.value);
+                      setProductCategoryFilter(val);
+                      setSelected(new Set());
+                      await loadProducts(1, productPerPage, val);
+                    }}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  >
+                    <option value="">Todas las categorías</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                )}
+                <select
+                  value={productPerPage}
+                  onChange={async e => {
+                    const val = parseInt(e.target.value);
+                    setProductPerPage(val);
+                    setSelected(new Set());
+                    await loadProducts(1, val, productCategoryFilter);
+                  }}
+                  className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                >
+                  <option value={10}>10 por página</option>
+                  <option value={50}>50 por página</option>
+                  <option value={100}>100 por página</option>
+                </select>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {productTotal > 0 ? `${products.length} de ${productTotal} productos` : `${products.length} productos`}
+                </span>
+                {productLoadingPage && <Loader2 size={14} className="animate-spin text-yellow-500" />}
+              </div>
+            )}
+
             {/* Table */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <table className="w-full text-sm">
@@ -932,7 +1026,10 @@ export default function SeoConnectorPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => {
+                  {(tab === "products" && productSearch
+                    ? items.filter(i => i.title.toLowerCase().includes(productSearch.toLowerCase()))
+                    : items
+                  ).map((item) => {
                     const score = calcScore(item);
                     return (
                       <tr key={item.id} className={`border-b border-gray-50 hover:bg-gray-50 transition ${selected.has(item.id) ? "bg-yellow-50/40" : ""}`}>
@@ -974,6 +1071,25 @@ export default function SeoConnectorPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Products pagination */}
+            {tab === "products" && productTotal > productPerPage && (
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  disabled={productPage <= 1 || productLoadingPage}
+                  onClick={() => loadProducts(productPage - 1, productPerPage, productCategoryFilter)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >← Anterior</button>
+                <span className="text-sm text-gray-600 px-2">
+                  Página {productPage} de {Math.ceil(productTotal / productPerPage)}
+                </span>
+                <button
+                  disabled={productPage >= Math.ceil(productTotal / productPerPage) || productLoadingPage}
+                  onClick={() => loadProducts(productPage + 1, productPerPage, productCategoryFilter)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >Siguiente →</button>
+              </div>
+            )}
 
             {/* Mass Product Positioning Button */}
             {tab === "products" && selected.size > 0 && (

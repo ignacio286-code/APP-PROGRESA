@@ -29,6 +29,7 @@ import {
   FileBarChart2,
   X,
   Share2,
+  Pencil,
 } from "lucide-react";
 import { useState } from "react";
 import { useClient } from "@/lib/client-context";
@@ -83,6 +84,7 @@ const navGroups: NavGroup[] = [
       { href: "/seo/connector", label: "Conector WordPress", icon: Globe },
       { href: "/seo/analyzer", label: "Analizador SEO", icon: Search },
       { href: "/seo/content", label: "Generador de Contenido", icon: Cpu },
+      { href: "/seo/reports", label: "Informes SEO", icon: FileBarChart2 },
     ],
   },
   {
@@ -112,6 +114,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/websites/informative", label: "Sitio Informativo", icon: Globe },
       { href: "/websites/ecommerce", label: "Tienda WooCommerce", icon: Building2 },
+      { href: "/websites/create-wp", label: "Crear en WordPress", icon: LineChart },
+      { href: "/websites/page-editor", label: "Editor de Páginas IA", icon: Pencil },
     ],
   },
   {
