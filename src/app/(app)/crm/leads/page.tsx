@@ -25,6 +25,7 @@ interface Lead {
   hasSocialMedia?: string;
   workday?: string;
   objective?: string;
+  description?: string;
   selectedPlan?: string;
   webPlan?: string;
   services?: string;
@@ -51,7 +52,8 @@ const DEFAULT_COLUMNS: ColConfig[] = [
   { key: "website",       label: "Sitio Web",        visible: false },
   { key: "location",      label: "Dirección",        visible: false },
   { key: "webPlan",       label: "Plan Web",         visible: false },
-  { key: "services",      label: "Servicios",        visible: false },
+  { key: "services",      label: "Servicios",        visible: true  },
+  { key: "description",   label: "Descripcion",      visible: true  },
   { key: "hasSocialMedia",label: "Redes Sociales",   visible: false },
   { key: "workday",       label: "Jornada",          visible: false },
   { key: "objective",     label: "Objetivo",         visible: false },
@@ -74,14 +76,14 @@ const STORAGE_KEY = "crm-leads-columns-v2";
 const EMPTY_FORM: Omit<Lead, "id"> = {
   name: "", rut: "", website: "", contactPerson: "", phone: "", email: "",
   status: "Nuevo", location: "", city: "", hasSocialMedia: "", workday: "",
-  objective: "", selectedPlan: "", webPlan: "", services: "", notes: "",
+  objective: "", description: "", selectedPlan: "", webPlan: "", services: "", notes: "",
 };
 
 const FORM_LABELS: Partial<Record<keyof Omit<Lead, "id">, string>> = {
   name: "Nombre *", contactPerson: "Encargado", phone: "Teléfono", email: "Email",
   city: "Ciudad", status: "Estado", selectedPlan: "Plan Seleccionado", rut: "RUT",
   website: "Sitio Web", location: "Dirección", services: "Servicios",
-  objective: "Objetivo", notes: "Notas",
+  description: "Descripción", objective: "Objetivo", notes: "Notas",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -560,7 +562,7 @@ export default function LeadsPage() {
                         <option value="">—</option>
                         {STATUS_OPTS.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
-                    ) : field === "notes" || field === "objective" ? (
+                    ) : field === "notes" || field === "objective" || field === "description" ? (
                       <textarea
                         value={(form[field] as string) || ""}
                         onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.value }))}
