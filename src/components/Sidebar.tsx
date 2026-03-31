@@ -32,6 +32,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useState } from "react";
+import NextImage from "next/image";
 import { useClient } from "@/lib/client-context";
 
 interface NavItem {
@@ -185,17 +186,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/10 shrink-0">
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col leading-none">
-              <span className="font-black text-xl tracking-tight text-white">Progresa</span>
-              <span className="text-xs font-semibold italic" style={{ color: "#FFC207" }}>Agencia</span>
-            </div>
-          </div>
+          <NextImage
+            src="/logo-progresa-blanco.webp"
+            alt="Progresa Agencia"
+            width={140}
+            height={56}
+          />
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto" style={{ backgroundColor: "#FFC207" }}>
-            <Megaphone size={16} className="text-black" />
-          </div>
+          <NextImage
+            src="/logo-progresa-blanco.webp"
+            alt="Progresa"
+            width={32}
+            height={32}
+            className="mx-auto"
+          />
         )}
         <div className="flex items-center gap-2">
           {!collapsed && (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Sidebar from "./Sidebar";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -32,10 +33,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={22} className="text-gray-700" />
           </button>
-          <div className="flex items-end gap-1">
-            <span className="font-black text-xl text-black tracking-tight">Progresa</span>
-            <span className="text-sm font-semibold italic pb-0.5" style={{ color: "#FFC207" }}>Agencia</span>
-          </div>
+          <Image
+            src="/logo-progresa.png"
+            alt="Progresa Agencia"
+            width={120}
+            height={48}
+          />
         </div>
 
         <main className="flex-1 overflow-y-auto">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { loginAction } from "./actions";
 import { Loader2, Lock, Mail } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -31,12 +32,13 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <div className="text-center">
-              <div className="flex items-end justify-center gap-1 mb-1">
-                <span className="text-5xl font-black text-black tracking-tight leading-none">Progresa</span>
-              </div>
-              <span className="text-2xl font-semibold italic" style={{ color: "#FFC207" }}>Agencia</span>
-            </div>
+            <Image
+              src="/logo-progresa.png"
+              alt="Progresa Agencia"
+              width={200}
+              height={80}
+              priority
+            />
           </div>
 
           <div className="border-t border-gray-100 mb-6" />
