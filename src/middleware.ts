@@ -5,8 +5,15 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow auth API routes
+  // Allow public routes
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
+  if (pathname.startsWith("/api/public")) {
+    const res = NextResponse.next();
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    return res;
+  }
   if (pathname.startsWith("/propuesta/")) return NextResponse.next();
 
   // NextAuth v5 uses "authjs.session-token" (HTTP) or "__Secure-authjs.session-token" (HTTPS)
