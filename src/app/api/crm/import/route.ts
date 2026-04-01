@@ -88,41 +88,35 @@ export async function POST() {
     let leads = 0;
     for (const item of leadItems) {
       const contactDateStr = col(item, "fecha__1");
+      const leadData = {
+        name: item.name,
+        rut: col(item, "text"),
+        website: colLink(item, "enlace__1"),
+        contactDate: contactDateStr ? new Date(contactDateStr) : null,
+        contactPerson: col(item, "text_1"),
+        cargo: col(item, "text_2"),
+        phone: col(item, "phone"),
+        email: col(item, "email"),
+        status: col(item, "estado__1"),
+        location: col(item, "location"),
+        city: col(item, "location__1"),
+        giro: col(item, "giro6__1"),
+        hasSocialMedia: col(item, "tiene_redes_sociales__1"),
+        socialMediaNames: col(item, "text__1"),
+        workday: col(item, "text5__1"),
+        objective: col(item, "objetivo_de_la_empresa__1"),
+        description: col(item, "texto_largo__1") || col(item, "long_text__1"),
+        competitors: col(item, "texto__1") || col(item, "long_text3__1"),
+        keywords: col(item, "texto2__1") || col(item, "palabras_claves__1"),
+        budget: col(item, "n_meros__1") ? parseFloat(col(item, "n_meros__1")) : null,
+        selectedPlan: col(item, "plan_seleccionado__1"),
+        webPlan: col(item, "plan_web__1"),
+        services: col(item, "servicios_solicitados5__1") || col(item, "men__desplegable4__1"),
+      };
       await prisma.crmLead.upsert({
         where: { mondayId: item.id },
-        create: {
-          mondayId: item.id,
-          name: item.name,
-          rut: col(item, "text"),
-          website: colLink(item, "enlace__1"),
-          contactDate: contactDateStr ? new Date(contactDateStr) : null,
-          contactPerson: col(item, "text_1"),
-          phone: col(item, "phone"),
-          email: col(item, "email"),
-          status: col(item, "estado__1"),
-          location: col(item, "location"),
-          city: col(item, "location__1"),
-          hasSocialMedia: col(item, "tiene_redes_sociales__1"),
-          workday: col(item, "text5__1"),
-          objective: col(item, "objetivo_de_la_empresa__1"),
-          selectedPlan: col(item, "plan_seleccionado__1"),
-          webPlan: col(item, "plan_web__1"),
-          services: col(item, "servicios_solicitados5__1"),
-        },
-        update: {
-          name: item.name,
-          rut: col(item, "text"),
-          website: colLink(item, "enlace__1"),
-          contactPerson: col(item, "text_1"),
-          phone: col(item, "phone"),
-          email: col(item, "email"),
-          status: col(item, "estado__1"),
-          hasSocialMedia: col(item, "tiene_redes_sociales__1"),
-          objective: col(item, "objetivo_de_la_empresa__1"),
-          selectedPlan: col(item, "plan_seleccionado__1"),
-          webPlan: col(item, "plan_web__1"),
-          services: col(item, "servicios_solicitados5__1"),
-        },
+        create: { mondayId: item.id, ...leadData },
+        update: leadData,
       });
       leads++;
     }
@@ -130,23 +124,26 @@ export async function POST() {
     // --- Propuestas ---
     let proposals = 0;
     for (const item of proposalItems) {
-      const proposalDateStr = col(item, "date");
-      const followUpDateStr = col(item, "date_1");
+      const issueDateStr = col(item, "date");
+      const dueDateStr = col(item, "date_1");
+      const folio = col(item, "item_id");
+      const proposalData = {
+        name: item.name,
+        folio: folio || null,
+        status: col(item, "estado__1") || "Pendiente",
+        issueDate: issueDateStr ? new Date(issueDateStr) : new Date(),
+        dueDate: dueDateStr ? new Date(dueDateStr) : null,
+        proposalDate: issueDateStr ? new Date(issueDateStr) : null,
+        followUpDate: dueDateStr ? new Date(dueDateStr) : null,
+        clientRut: col(item, "mirror9") || null,
+        clientPhone: col(item, "mirror0") || null,
+        clientEmail: col(item, "mirror4") || null,
+        clientAddress: col(item, "mirror") || null,
+      };
       await prisma.crmProposal.upsert({
         where: { mondayId: item.id },
-        create: {
-          mondayId: item.id,
-          name: item.name,
-          status: col(item, "estado__1"),
-          proposalDate: proposalDateStr ? new Date(proposalDateStr) : null,
-          followUpDate: followUpDateStr ? new Date(followUpDateStr) : null,
-        },
-        update: {
-          name: item.name,
-          status: col(item, "estado__1"),
-          proposalDate: proposalDateStr ? new Date(proposalDateStr) : null,
-          followUpDate: followUpDateStr ? new Date(followUpDateStr) : null,
-        },
+        create: { mondayId: item.id, ...proposalData },
+        update: proposalData,
       });
       proposals++;
     }
