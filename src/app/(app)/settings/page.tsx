@@ -2,12 +2,21 @@
 
 import Header from "@/components/Header";
 import { useEffect, useState } from "react";
-import { Key, Eye, EyeOff, Save, CheckCircle, AlertCircle } from "lucide-react";
+import { Key, Eye, EyeOff, Save, CheckCircle, AlertCircle, Share2 } from "lucide-react";
 
 interface ApiKeys {
   ANTHROPIC_API_KEY: string;
   MONDAY_API_TOKEN: string;
   RESEND_API_KEY: string;
+  META_APP_ID: string;
+  META_APP_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_DEVELOPER_TOKEN: string;
+  TIKTOK_CLIENT_KEY: string;
+  TIKTOK_CLIENT_SECRET: string;
+  LINKEDIN_CLIENT_ID: string;
+  LINKEDIN_CLIENT_SECRET: string;
 }
 
 export default function SettingsPage() {
@@ -16,6 +25,15 @@ export default function SettingsPage() {
     ANTHROPIC_API_KEY: "",
     MONDAY_API_TOKEN: "",
     RESEND_API_KEY: "",
+    META_APP_ID: "",
+    META_APP_SECRET: "",
+    GOOGLE_CLIENT_ID: "",
+    GOOGLE_CLIENT_SECRET: "",
+    GOOGLE_DEVELOPER_TOKEN: "",
+    TIKTOK_CLIENT_KEY: "",
+    TIKTOK_CLIENT_SECRET: "",
+    LINKEDIN_CLIENT_ID: "",
+    LINKEDIN_CLIENT_SECRET: "",
   });
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [savingKeys, setSavingKeys] = useState(false);
@@ -85,6 +103,83 @@ export default function SettingsPage() {
     },
   ];
 
+  const socialKeyGroups = [
+    {
+      platform: "Meta (Facebook / Instagram)",
+      fields: [
+        {
+          key: "META_APP_ID",
+          label: "Meta App ID",
+          desc: "ID de la aplicacion de Meta. Obtener en developers.facebook.com > My Apps",
+          placeholder: "123456789012345",
+        },
+        {
+          key: "META_APP_SECRET",
+          label: "Meta App Secret",
+          desc: "Secret de la aplicacion de Meta. Obtener en developers.facebook.com > My Apps > Settings > Basic",
+          placeholder: "abc123def456...",
+        },
+      ],
+    },
+    {
+      platform: "Google (YouTube / Google Ads)",
+      fields: [
+        {
+          key: "GOOGLE_CLIENT_ID",
+          label: "Google Client ID",
+          desc: "OAuth 2.0 Client ID. Obtener en console.cloud.google.com > APIs & Services > Credentials",
+          placeholder: "123456789-abc.apps.googleusercontent.com",
+        },
+        {
+          key: "GOOGLE_CLIENT_SECRET",
+          label: "Google Client Secret",
+          desc: "OAuth 2.0 Client Secret. Obtener en console.cloud.google.com > APIs & Services > Credentials",
+          placeholder: "GOCSPX-...",
+        },
+        {
+          key: "GOOGLE_DEVELOPER_TOKEN",
+          label: "Google Ads Developer Token",
+          desc: "Token de desarrollador para Google Ads API. Obtener en ads.google.com > Tools > API Center",
+          placeholder: "AbCdEfGhIjKlMnOp",
+        },
+      ],
+    },
+    {
+      platform: "TikTok",
+      fields: [
+        {
+          key: "TIKTOK_CLIENT_KEY",
+          label: "TikTok Client Key",
+          desc: "Client Key de la app de TikTok. Obtener en developers.tiktok.com > My Apps",
+          placeholder: "abc123def456...",
+        },
+        {
+          key: "TIKTOK_CLIENT_SECRET",
+          label: "TikTok Client Secret",
+          desc: "Client Secret de la app de TikTok. Obtener en developers.tiktok.com > My Apps",
+          placeholder: "abc123def456...",
+        },
+      ],
+    },
+    {
+      platform: "LinkedIn",
+      fields: [
+        {
+          key: "LINKEDIN_CLIENT_ID",
+          label: "LinkedIn Client ID",
+          desc: "Client ID de la app de LinkedIn. Obtener en developer.linkedin.com > My Apps",
+          placeholder: "abc123def456",
+        },
+        {
+          key: "LINKEDIN_CLIENT_SECRET",
+          label: "LinkedIn Client Secret",
+          desc: "Client Secret de la app de LinkedIn. Obtener en developer.linkedin.com > My Apps",
+          placeholder: "abc123def456...",
+        },
+      ],
+    },
+  ];
+
   return (
     <div>
       <Header title="Configuración" subtitle="Ajustes de la plataforma" />
@@ -130,6 +225,54 @@ export default function SettingsPage() {
                 )}
               </div>
             ))}
+
+            {/* Social Media API Keys Section */}
+            <div className="border-t border-gray-200 pt-5 mt-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Share2 size={18} className="text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-900">Conexiones de Redes Sociales</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Claves API para conectar plataformas de redes sociales y publicidad digital.</p>
+
+              {socialKeyGroups.map((group) => (
+                <div key={group.platform} className="mb-5">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{group.platform}</h4>
+                  <div className="space-y-4">
+                    {group.fields.map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {field.label}
+                        </label>
+                        <p className="text-xs text-gray-400 mb-1.5">{field.desc}</p>
+                        <div className="relative">
+                          <input
+                            type={showKeys[field.key] ? "text" : "password"}
+                            value={keys[field.key as keyof ApiKeys] || ""}
+                            onChange={(e) =>
+                              setKeys((prev) => ({ ...prev, [field.key]: e.target.value }))
+                            }
+                            placeholder={field.placeholder}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => toggleShow(field.key)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showKeys[field.key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        {keys[field.key as keyof ApiKeys] && keys[field.key as keyof ApiKeys].includes("......") && (
+                          <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                            <CheckCircle size={12} /> Configurada
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {keyError && (
               <div className="flex items-center gap-2 text-red-600 text-sm">

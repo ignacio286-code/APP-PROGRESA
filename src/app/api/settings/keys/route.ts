@@ -40,6 +40,33 @@ export async function GET() {
     RESEND_API_KEY: vars.RESEND_API_KEY
       ? "re_......" + vars.RESEND_API_KEY.slice(-6)
       : "",
+    META_APP_ID: vars.META_APP_ID
+      ? "......" + vars.META_APP_ID.slice(-6)
+      : "",
+    META_APP_SECRET: vars.META_APP_SECRET
+      ? "......" + vars.META_APP_SECRET.slice(-6)
+      : "",
+    GOOGLE_CLIENT_ID: vars.GOOGLE_CLIENT_ID
+      ? "......" + vars.GOOGLE_CLIENT_ID.slice(-6)
+      : "",
+    GOOGLE_CLIENT_SECRET: vars.GOOGLE_CLIENT_SECRET
+      ? "......" + vars.GOOGLE_CLIENT_SECRET.slice(-6)
+      : "",
+    GOOGLE_DEVELOPER_TOKEN: vars.GOOGLE_DEVELOPER_TOKEN
+      ? "......" + vars.GOOGLE_DEVELOPER_TOKEN.slice(-6)
+      : "",
+    TIKTOK_CLIENT_KEY: vars.TIKTOK_CLIENT_KEY
+      ? "......" + vars.TIKTOK_CLIENT_KEY.slice(-6)
+      : "",
+    TIKTOK_CLIENT_SECRET: vars.TIKTOK_CLIENT_SECRET
+      ? "......" + vars.TIKTOK_CLIENT_SECRET.slice(-6)
+      : "",
+    LINKEDIN_CLIENT_ID: vars.LINKEDIN_CLIENT_ID
+      ? "......" + vars.LINKEDIN_CLIENT_ID.slice(-6)
+      : "",
+    LINKEDIN_CLIENT_SECRET: vars.LINKEDIN_CLIENT_SECRET
+      ? "......" + vars.LINKEDIN_CLIENT_SECRET.slice(-6)
+      : "",
   });
 }
 
@@ -59,6 +86,42 @@ export async function PUT(req: NextRequest) {
   if (body.RESEND_API_KEY && !body.RESEND_API_KEY.includes("......")) {
     vars.RESEND_API_KEY = body.RESEND_API_KEY;
     process.env.RESEND_API_KEY = body.RESEND_API_KEY;
+  }
+  if (body.META_APP_ID && !body.META_APP_ID.includes("......")) {
+    vars.META_APP_ID = body.META_APP_ID;
+    process.env.META_APP_ID = body.META_APP_ID;
+  }
+  if (body.META_APP_SECRET && !body.META_APP_SECRET.includes("......")) {
+    vars.META_APP_SECRET = body.META_APP_SECRET;
+    process.env.META_APP_SECRET = body.META_APP_SECRET;
+  }
+  if (body.GOOGLE_CLIENT_ID && !body.GOOGLE_CLIENT_ID.includes("......")) {
+    vars.GOOGLE_CLIENT_ID = body.GOOGLE_CLIENT_ID;
+    process.env.GOOGLE_CLIENT_ID = body.GOOGLE_CLIENT_ID;
+  }
+  if (body.GOOGLE_CLIENT_SECRET && !body.GOOGLE_CLIENT_SECRET.includes("......")) {
+    vars.GOOGLE_CLIENT_SECRET = body.GOOGLE_CLIENT_SECRET;
+    process.env.GOOGLE_CLIENT_SECRET = body.GOOGLE_CLIENT_SECRET;
+  }
+  if (body.GOOGLE_DEVELOPER_TOKEN && !body.GOOGLE_DEVELOPER_TOKEN.includes("......")) {
+    vars.GOOGLE_DEVELOPER_TOKEN = body.GOOGLE_DEVELOPER_TOKEN;
+    process.env.GOOGLE_DEVELOPER_TOKEN = body.GOOGLE_DEVELOPER_TOKEN;
+  }
+  if (body.TIKTOK_CLIENT_KEY && !body.TIKTOK_CLIENT_KEY.includes("......")) {
+    vars.TIKTOK_CLIENT_KEY = body.TIKTOK_CLIENT_KEY;
+    process.env.TIKTOK_CLIENT_KEY = body.TIKTOK_CLIENT_KEY;
+  }
+  if (body.TIKTOK_CLIENT_SECRET && !body.TIKTOK_CLIENT_SECRET.includes("......")) {
+    vars.TIKTOK_CLIENT_SECRET = body.TIKTOK_CLIENT_SECRET;
+    process.env.TIKTOK_CLIENT_SECRET = body.TIKTOK_CLIENT_SECRET;
+  }
+  if (body.LINKEDIN_CLIENT_ID && !body.LINKEDIN_CLIENT_ID.includes("......")) {
+    vars.LINKEDIN_CLIENT_ID = body.LINKEDIN_CLIENT_ID;
+    process.env.LINKEDIN_CLIENT_ID = body.LINKEDIN_CLIENT_ID;
+  }
+  if (body.LINKEDIN_CLIENT_SECRET && !body.LINKEDIN_CLIENT_SECRET.includes("......")) {
+    vars.LINKEDIN_CLIENT_SECRET = body.LINKEDIN_CLIENT_SECRET;
+    process.env.LINKEDIN_CLIENT_SECRET = body.LINKEDIN_CLIENT_SECRET;
   }
 
   await writeEnv(vars);
