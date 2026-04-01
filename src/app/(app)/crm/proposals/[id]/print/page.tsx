@@ -130,24 +130,17 @@ export default function ProposalPrintPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px" }}>
             {/* Logo / Company */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                <div style={{
-                  width: "48px", height: "48px", borderRadius: "12px",
-                  background: "#FFC207", display: "flex", alignItems: "center", justifyContent: "center",
-                  fontWeight: "900", fontSize: "20px", color: "#000",
-                }}>P</div>
-                <div>
-                  <div style={{ fontWeight: "800", fontSize: "18pt", lineHeight: 1 }}>Progresa</div>
-                  <div style={{ fontSize: "8pt", color: "#999", letterSpacing: "0.1em" }}>AGENCIA</div>
-                </div>
+              <div style={{ marginBottom: "8px" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-progresa.png" alt="Progresa Agencia" style={{ height: "50px", width: "auto" }} />
               </div>
-              <div style={{ fontSize: "9pt", color: "#555", lineHeight: 1.6 }}>
-                <div>PROGRESA GROUP Spa</div>
+              <div style={{ fontSize: "9pt", color: "#333", lineHeight: 1.6 }}>
+                <div><strong>PROGRESA GROUP SpA</strong></div>
                 <div>77.910.002-2</div>
-                <div>Avda Oriente 565, Los Ángeles, Región del Bío Bío</div>
+                <div>Avda Oriente 565, Los Ángeles</div>
+                <div>Región del Bío Bío, Chile</div>
                 <div>+56 9 9943 7664</div>
-                <div>contacto@agenciaprogresa.cl</div>
-                <div>www.agenciaprogresa.cl</div>
+                <div style={{ color: "#FFC207" }}>contacto@agenciaprogresa.cl</div>
               </div>
             </div>
 
@@ -199,24 +192,6 @@ export default function ProposalPrintPage() {
             </div>
           </div>
 
-          {/* Terms & Conditions */}
-          {proposal.termsConditions && (
-            <div style={{
-              border: "1px solid #e5e5e5", borderRadius: "12px",
-              padding: "16px 20px", marginBottom: "24px",
-            }}>
-              <div style={{
-                background: "#FFC207", padding: "4px 12px", borderRadius: "6px",
-                fontWeight: "700", fontSize: "10pt", marginBottom: "10px", display: "inline-block",
-              }}>
-                Terminos y Condiciones
-              </div>
-              <div style={{ fontSize: "9pt", color: "#555", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                {proposal.termsConditions}
-              </div>
-            </div>
-          )}
-
           {/* Items table */}
           <table style={{
             width: "100%", borderCollapse: "collapse", marginBottom: "16px",
@@ -264,17 +239,17 @@ export default function ProposalPrintPage() {
             <table style={{ width: "280px", borderCollapse: "collapse" }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#555" }}>Valor Neto</td>
+                  <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#333" }}>Valor Neto</td>
                   <td style={{ padding: "6px 12px", fontSize: "10pt", textAlign: "right", fontWeight: "600" }}>{clp(totalNeto)}</td>
                 </tr>
                 {totalDescuento > 0 && (
                   <tr>
-                    <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#555" }}>Descuento Total</td>
+                    <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#333" }}>Descuento Total</td>
                     <td style={{ padding: "6px 12px", fontSize: "10pt", textAlign: "right", color: "#e55", fontWeight: "600" }}>-{clp(totalDescuento)}</td>
                   </tr>
                 )}
                 <tr>
-                  <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#555" }}>Impuesto</td>
+                  <td style={{ padding: "6px 12px", fontSize: "10pt", color: "#333" }}>Impuesto</td>
                   <td style={{ padding: "6px 12px", fontSize: "10pt", textAlign: "right", fontWeight: "600" }}>{clp(totalImpuesto)}</td>
                 </tr>
                 <tr style={{ borderTop: "2px solid #FFC207" }}>
@@ -296,13 +271,42 @@ export default function ProposalPrintPage() {
             }}>
               Datos de Transferencia
             </div>
-            <div style={{ fontSize: "10pt", lineHeight: 1.8, color: "#444" }}>
-              <div><strong>PROGRESA GROUP SpA</strong></div>
-              <div>77.910.002-2</div>
-              <div>Banco de Chile · Cuenta Vista</div>
-              <div>64-30240-64</div>
-              <div>progresa.agency@gmail.com</div>
+            <div style={{ fontSize: "10pt", lineHeight: 1.8, color: "#333" }}>
+              <table style={{ borderCollapse: "collapse" }}>
+                <tbody>
+                  <tr><td style={{ padding: "2px 12px 2px 0", color: "#666" }}>Razón Social:</td><td style={{ fontWeight: "600" }}>PROGRESA GROUP SpA</td></tr>
+                  <tr><td style={{ padding: "2px 12px 2px 0", color: "#666" }}>RUT:</td><td style={{ fontWeight: "600" }}>77.910.002-2</td></tr>
+                  <tr><td style={{ padding: "2px 12px 2px 0", color: "#666" }}>Banco:</td><td style={{ fontWeight: "600" }}>Banco Estado</td></tr>
+                  <tr><td style={{ padding: "2px 12px 2px 0", color: "#666" }}>Tipo de Cuenta:</td><td style={{ fontWeight: "600" }}>Cuenta Corriente</td></tr>
+                  <tr><td style={{ padding: "2px 12px 2px 0", color: "#666" }}>Email:</td><td style={{ fontWeight: "600", color: "#FFC207" }}>contacto@agenciaprogresa.cl</td></tr>
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          {/* Terms & Conditions */}
+          {proposal.termsConditions && (
+            <div style={{
+              border: "1px solid #e5e5e5", borderRadius: "12px",
+              padding: "16px 20px", marginTop: "24px", borderTop: "3px solid #FFC207",
+            }}>
+              <div style={{
+                fontWeight: "800", fontSize: "10pt", marginBottom: "10px",
+                textTransform: "uppercase", letterSpacing: "2px",
+              }}>
+                Términos y Condiciones
+              </div>
+              <div style={{ fontSize: "9pt", color: "#333", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                {proposal.termsConditions}
+              </div>
+            </div>
+          )}
+
+          {/* Methodology footer */}
+          <div style={{ textAlign: "center", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid #e5e5e5" }}>
+            <p style={{ fontSize: "8pt", color: "#999", margin: 0 }}>
+              METODOLOGÍA PROGRESA: 1. ESCUCHAR - ANALIZAR / 2. PLANIFICAR - EJECUTAR / 3. MEDIR Y PROGRESAR.
+            </p>
           </div>
 
         </div>
