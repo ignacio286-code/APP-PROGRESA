@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import {
   Search, Plus, Trash2, X, ChevronDown, ChevronRight,
-  FileText, Filter, Download, Upload, Edit2, Check, User, Package, RefreshCw
+  FileText, Filter, Download, Upload, Edit2, Check, User, Package, RefreshCw, Send
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -467,6 +467,31 @@ function ProposalsContent() {
     setItems((p) => p.filter((i) => i.id !== id));
   }
 
+  async function handleSendProposal(p: Proposal) {
+    const email = p.clientEmail;
+    if (!email) {
+      alert("Esta propuesta no tiene email de cliente. Edítala primero.");
+      return;
+    }
+    if (!confirm(`¿Enviar propuesta #${p.folio || "S/N"} a ${email}?\nTambién se enviará copia a contacto@agenciaprogresa.cl`)) return;
+    try {
+      const res = await fetch(`/api/crm/proposals/${p.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`✓ Propuesta enviada a ${email}`);
+        fetchItems();
+      } else {
+        alert("Error: " + (data.error || "No se pudo enviar"));
+      }
+    } catch {
+      alert("Error de conexión al enviar la propuesta");
+    }
+  }
+
   async function updateStatus(id: string, status: string) {
     if (status === "Perdido") {
       setLostReason("");
@@ -768,11 +793,12 @@ function ProposalsContent() {
                     <div className="text-sm font-bold" style={{ color: "#FFC207" }}>{clp(total)}</div>
                     <div className="text-xs text-gray-400">{p.items.length} servicio{p.items.length !== 1 ? "s" : ""}</div>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={14} /></button>
-                      <button onClick={() => window.open(`/crm/proposals/${p.id}/print`, "_blank")} className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50"><Download size={14} /></button>
+                      <button onClick={() => handleSendProposal(p)} title="Enviar por email" className="p-1.5 rounded-lg text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><Send size={14} /></button>
+                      <button onClick={() => openEdit(p)} title="Editar" className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={14} /></button>
+                      <button onClick={() => window.open(`/crm/proposals/${p.id}/print`, "_blank")} title="Ver PDF" className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50"><Download size={14} /></button>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(p.id)} title="Eliminar" className="p-1.5 rounded-lg text-gray-300 hover:text-red-500"><Trash2 size={14} /></button>
                     </div>
                   </div>
 

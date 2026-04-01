@@ -144,8 +144,9 @@ export default function ProposalPrintPage() {
               <div style={{ fontSize: "9pt", color: "#555", lineHeight: 1.6 }}>
                 <div>PROGRESA GROUP Spa</div>
                 <div>77.910.002-2</div>
-                <div>Los Conquistadores 336, Los Ángeles, Región del Bio Bio</div>
+                <div>Avda Oriente 565, Los Ángeles, Región del Bío Bío</div>
                 <div>+56 9 9943 7664</div>
+                <div>contacto@agenciaprogresa.cl</div>
                 <div>www.agenciaprogresa.cl</div>
               </div>
             </div>
