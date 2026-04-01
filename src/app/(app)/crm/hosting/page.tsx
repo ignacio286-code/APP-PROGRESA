@@ -18,6 +18,7 @@ interface HostingClient {
   location?: string;
   hostingValue?: number;
   paid?: string;
+  lastPaymentDate?: string;
   serviceId?: string;
 }
 
@@ -44,7 +45,7 @@ function clp(n?: number) {
 
 const EMPTY = (): Omit<HostingClient, "id"> => ({
   name: "", phone: "", website: "", startDate: "",
-  statusOp: "OPERATIVO", tags: "", location: "", hostingValue: 0, paid: "PENDIENTE", serviceId: "",
+  statusOp: "OPERATIVO", tags: "", location: "", hostingValue: 0, paid: "PENDIENTE", lastPaymentDate: "", serviceId: "",
 });
 
 export default function HostingPage() {
@@ -98,7 +99,7 @@ export default function HostingPage() {
     setEditItem(c);
     setForm({ name: c.name, phone: c.phone || "", website: c.website || "", startDate: c.startDate || "",
       statusOp: c.statusOp || "OPERATIVO", tags: c.tags || "", location: c.location || "",
-      hostingValue: c.hostingValue || 0, paid: c.paid || "PENDIENTE", serviceId: c.serviceId || "" });
+      hostingValue: c.hostingValue || 0, paid: c.paid || "PENDIENTE", lastPaymentDate: c.lastPaymentDate || "", serviceId: c.serviceId || "" });
     setShowModal(true);
   }
 
@@ -281,7 +282,8 @@ export default function HostingPage() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Estado</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Pago</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Hosting/Año</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Servicio</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Último Pago</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Plan</th>
                   <th className="px-4 py-3 text-xs" />
                 </tr>
               </thead>
@@ -320,6 +322,7 @@ export default function HostingPage() {
                         </button>
                       </td>
                       <td className="px-4 py-3 font-semibold text-sm" style={{ color: "#FFC207" }}>{clp(c.hostingValue)}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{c.lastPaymentDate || "—"}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{svcName || "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
@@ -336,7 +339,7 @@ export default function HostingPage() {
                   <tr className="bg-gray-50 border-t-2 border-gray-200">
                     <td colSpan={5} className="px-4 py-3 text-xs font-semibold text-gray-600">Total anual ({filtered.length} clientes)</td>
                     <td className="px-4 py-3 font-bold text-sm" style={{ color: "#FFC207" }}>{clp(totalValueAnual)}</td>
-                    <td colSpan={2} />
+                    <td colSpan={3} />
                   </tr>
                 </tfoot>
               )}
@@ -396,8 +399,14 @@ export default function HostingPage() {
                     onChange={(e) => setForm((f) => ({ ...f, hostingValue: parseFloat(e.target.value) || 0 }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
                 </div>
-                <Field label="Tags (separados por coma)" value={form.tags as string} onChange={(v) => setForm((f) => ({ ...f, tags: v }))} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Fecha último pago</label>
+                  <input type="date" value={form.lastPaymentDate as string}
+                    onChange={(e) => setForm((f) => ({ ...f, lastPaymentDate: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+                </div>
               </div>
+              <Field label="Tags (separados por coma)" value={form.tags as string} onChange={(v) => setForm((f) => ({ ...f, tags: v }))} />
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm">Cancelar</button>

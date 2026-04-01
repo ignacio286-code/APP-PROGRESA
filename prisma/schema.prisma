@@ -367,6 +367,7 @@ model CrmHostingClient {
   location     String?
   hostingValue Float?
   paid         String?
+  lastPaymentDate String?
   notes        String?
   serviceId    String?
   createdAt    DateTime  @default(now())
