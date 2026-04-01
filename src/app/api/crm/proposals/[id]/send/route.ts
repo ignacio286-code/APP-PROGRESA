@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import crypto from "crypto";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() { return new Resend(process.env.RESEND_API_KEY); }
 
 function formatCLP(n: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(n);
+  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
 }
 
 function buildProposalHtml(proposal: {
@@ -47,17 +47,18 @@ function buildProposalHtml(proposal: {
   const itemsHtml = proposal.items.map(item => {
     const base = item.quantity * item.unitPrice;
     const disc = base * (item.discount / 100);
-    const itemTotal = base - disc;
+    const itemTax = (base - disc) * (item.tax / 100);
+    const itemTotal = base - disc + itemTax;
     return `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">
-          <strong>${item.name}</strong>
-          ${item.description ? `<br><span style="color:#666;font-size:12px;">${item.description.substring(0, 100)}${item.description.length > 100 ? '...' : ''}</span>` : ''}
+        <td style="padding:14px 16px;border-bottom:1px solid #f0f0f0;">
+          <strong style="font-size:14px;color:#111;">${item.name}</strong>
+          ${item.description ? `<br><span style="color:#666;font-size:13px;line-height:1.6;">${item.description}</span>` : ''}
         </td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center;">${item.quantity}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;">${formatCLP(item.unitPrice)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;">${item.discount > 0 ? `-${item.discount}%` : '-'}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;">${formatCLP(itemTotal)}</td>
+        <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:14px;">${item.quantity}</td>
+        <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:14px;">${formatCLP(item.unitPrice)}</td>
+        <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:14px;">${formatCLP(itemTax)}</td>
+        <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:14px;font-weight:700;">${formatCLP(itemTotal)}</td>
       </tr>
     `;
   }).join('');
@@ -66,86 +67,117 @@ function buildProposalHtml(proposal: {
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#f5f5f5;">
-  <div style="max-width:680px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <div style="max-width:700px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
 
-    <!-- Header -->
-    <div style="background:#000;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;">
-      <div>
-        <span style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px;">Progresa</span>
-        <span style="font-size:16px;font-style:italic;font-weight:600;color:#FFC207;margin-left:6px;">Agencia</span>
-      </div>
-      <div style="text-align:right;">
-        <p style="color:#FFC207;font-size:12px;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Propuesta Comercial</p>
-        <p style="color:#fff;font-size:20px;font-weight:700;margin:4px 0 0;">#${proposal.folio || 'S/N'}</p>
-      </div>
+    <!-- Header with logo -->
+    <div style="background:#000;padding:32px 40px;">
+      <table style="width:100%;">
+        <tr>
+          <td style="vertical-align:top;">
+            <div style="margin-bottom:8px;">
+              <span style="font-size:32px;font-weight:900;color:#fff;letter-spacing:-1px;">Progresa</span>
+              <span style="font-size:18px;font-style:italic;font-weight:600;color:#FFC207;margin-left:6px;">Agencia</span>
+            </div>
+            <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0;line-height:1.6;">
+              PROGRESA GROUP SpA · 77.910.002-2<br>
+              Avda Oriente 565, Los Ángeles<br>
+              Región del Bío Bío, Chile<br>
+              +56 9 9943 7664 · contacto@agenciaprogresa.cl
+            </p>
+          </td>
+          <td style="text-align:right;vertical-align:top;">
+            <div style="background:rgba(255,194,7,0.15);border:1px solid rgba(255,194,7,0.3);border-radius:12px;padding:16px 20px;display:inline-block;">
+              <p style="color:#FFC207;font-size:11px;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Propuesta Comercial</p>
+              <p style="color:#fff;font-size:28px;font-weight:900;margin:6px 0 0;letter-spacing:-1px;">#${proposal.folio || 'S/N'}</p>
+            </div>
+          </td>
+        </tr>
+      </table>
     </div>
 
-    <!-- Body -->
-    <div style="padding:32px;">
+    <!-- Yellow accent line -->
+    <div style="height:4px;background:linear-gradient(90deg,#FFC207,#e6ae00);"></div>
 
-      <!-- Client info -->
-      <div style="display:flex;gap:24px;margin-bottom:28px;">
-        <div style="flex:1;background:#f9f9f9;border-radius:8px;padding:16px;">
-          <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Para</p>
-          <p style="font-size:16px;font-weight:700;color:#111;margin:0 0 4px;">${proposal.name}</p>
-          ${proposal.clientRut ? `<p style="font-size:13px;color:#555;margin:0 0 2px;">RUT: ${proposal.clientRut}</p>` : ''}
-          ${proposal.clientAddress ? `<p style="font-size:13px;color:#555;margin:0 0 2px;">${proposal.clientAddress}</p>` : ''}
-          ${proposal.clientPhone ? `<p style="font-size:13px;color:#555;margin:0;">Tel: ${proposal.clientPhone}</p>` : ''}
-        </div>
-        <div style="text-align:right;min-width:160px;">
-          <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Fechas</p>
-          <p style="font-size:13px;color:#555;margin:0 0 4px;">Emisión: <strong>${new Date(proposal.issueDate).toLocaleDateString('es-CL')}</strong></p>
-          ${proposal.dueDate ? `<p style="font-size:13px;color:#555;margin:0;">Vence: <strong>${new Date(proposal.dueDate).toLocaleDateString('es-CL')}</strong></p>` : ''}
-        </div>
-      </div>
+    <!-- Body -->
+    <div style="padding:40px;">
+
+      <!-- Client & dates info -->
+      <table style="width:100%;margin-bottom:32px;">
+        <tr>
+          <td style="vertical-align:top;width:55%;padding-right:20px;">
+            <div style="background:#f8f9fa;border-radius:12px;padding:20px;border-left:4px solid #FFC207;">
+              <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px;font-weight:700;">EMPRESA</p>
+              <p style="font-size:18px;font-weight:800;color:#111;margin:0 0 6px;">${proposal.name}</p>
+              ${proposal.clientRut ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">RUT: <strong>${proposal.clientRut}</strong></p>` : ''}
+              ${proposal.clientAddress ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Dirección: ${proposal.clientAddress}</p>` : ''}
+              ${proposal.clientPhone ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Teléfono: <strong>${proposal.clientPhone}</strong></p>` : ''}
+              ${proposal.clientEmail ? `<p style="font-size:13px;color:#555;margin:0;">Email: <strong>${proposal.clientEmail}</strong></p>` : ''}
+            </div>
+          </td>
+          <td style="vertical-align:top;">
+            <div style="background:#f8f9fa;border-radius:12px;padding:20px;">
+              <p style="font-size:13px;color:#555;margin:0 0 8px;">Fecha de Emisión: <strong>${new Date(proposal.issueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
+              ${proposal.dueDate ? `<p style="font-size:13px;color:#555;margin:0 0 8px;">Fecha de Vencimiento: <strong>${new Date(proposal.dueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>` : ''}
+              ${proposal.agentName ? `
+              <div style="border-top:1px solid #e5e7eb;padding-top:10px;margin-top:10px;">
+                <p style="font-size:13px;color:#555;margin:0 0 3px;">Ejecutivo: <strong>${proposal.agentName}</strong></p>
+                ${proposal.agentPhone ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Tel: ${proposal.agentPhone}</p>` : ''}
+                ${proposal.agentEmail ? `<p style="font-size:13px;color:#555;margin:0;">Email: ${proposal.agentEmail}</p>` : ''}
+              </div>` : ''}
+            </div>
+          </td>
+        </tr>
+      </table>
 
       <!-- Items table -->
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:12px;overflow:hidden;">
         <thead>
-          <tr style="background:#f0f0f0;">
-            <th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;">Servicio</th>
-            <th style="padding:10px 12px;text-align:center;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;">Cant.</th>
-            <th style="padding:10px 12px;text-align:right;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;">Precio</th>
-            <th style="padding:10px 12px;text-align:right;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;">Desc.</th>
-            <th style="padding:10px 12px;text-align:right;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;">Total</th>
+          <tr style="background:#000;">
+            <th style="padding:14px 16px;text-align:left;font-size:12px;color:#FFC207;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Producto</th>
+            <th style="padding:14px 12px;text-align:center;font-size:12px;color:#FFC207;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Cantidad</th>
+            <th style="padding:14px 12px;text-align:right;font-size:12px;color:#FFC207;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Valor Neto</th>
+            <th style="padding:14px 12px;text-align:right;font-size:12px;color:#FFC207;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Impuesto</th>
+            <th style="padding:14px 12px;text-align:right;font-size:12px;color:#FFC207;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Valor Total</th>
           </tr>
         </thead>
         <tbody>${itemsHtml}</tbody>
       </table>
 
       <!-- Totals -->
-      <div style="text-align:right;border-top:2px solid #f0f0f0;padding-top:16px;margin-bottom:28px;">
-        <p style="font-size:14px;color:#555;margin:0 0 4px;">Subtotal: <strong>${formatCLP(subtotal)}</strong></p>
-        ${tax > 0 ? `<p style="font-size:14px;color:#555;margin:0 0 8px;">IVA: <strong>${formatCLP(tax)}</strong></p>` : ''}
-        <p style="font-size:20px;font-weight:900;color:#111;margin:0;">Total: <span style="color:#FFC207;">${formatCLP(total)}</span></p>
+      <div style="text-align:right;margin-bottom:32px;">
+        <table style="margin-left:auto;border-collapse:collapse;">
+          <tr><td style="padding:6px 20px;font-size:14px;color:#555;">Valor Neto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(subtotal)}</td></tr>
+          <tr><td style="padding:6px 20px;font-size:14px;color:#555;">Descuento Total</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(0)}</td></tr>
+          ${tax > 0 ? `<tr><td style="padding:6px 20px;font-size:14px;color:#555;">Impuesto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(tax)}</td></tr>` : ''}
+          <tr style="border-top:3px solid #FFC207;">
+            <td style="padding:12px 20px;font-size:18px;font-weight:900;color:#000;">Total</td>
+            <td style="padding:12px 0;font-size:18px;font-weight:900;color:#000;text-align:right;">${formatCLP(total)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Accept CTA -->
+      <div style="text-align:center;margin:36px 0;background:linear-gradient(135deg,#000 0%,#1a1a2e 100%);border-radius:16px;padding:32px;">
+        <p style="font-size:16px;color:rgba(255,255,255,0.8);margin:0 0 20px;">Para aceptar esta propuesta, haz click en el botón:</p>
+        <a href="${acceptUrl}" style="display:inline-block;background:#FFC207;color:#000;font-weight:800;font-size:17px;padding:16px 48px;border-radius:50px;text-decoration:none;letter-spacing:0.5px;">
+          ✓ Aceptar Propuesta
+        </a>
+        <p style="font-size:11px;color:rgba(255,255,255,0.4);margin:20px 0 0;">O copia este enlace: ${acceptUrl}</p>
       </div>
 
       ${proposal.termsConditions ? `
       <!-- Terms -->
-      <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin-bottom:24px;">
-        <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Términos y Condiciones</p>
-        <p style="font-size:13px;color:#555;margin:0;line-height:1.6;">${proposal.termsConditions.replace(/\n/g, '<br>')}</p>
+      <div style="background:#f8f9fa;border-radius:12px;padding:24px;margin-top:24px;border-top:3px solid #FFC207;">
+        <p style="font-size:13px;color:#000;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;font-weight:800;">Términos y Condiciones</p>
+        <p style="font-size:13px;color:#555;margin:0;line-height:1.8;">${proposal.termsConditions.replace(/\n/g, '<br>')}</p>
       </div>` : ''}
 
-      <!-- Accept CTA -->
-      <div style="text-align:center;margin:28px 0;">
-        <p style="font-size:14px;color:#555;margin:0 0 16px;">Para aceptar esta propuesta, haz click en el botón:</p>
-        <a href="${acceptUrl}" style="display:inline-block;background:#FFC207;color:#000;font-weight:700;font-size:16px;padding:14px 40px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
-          ✓ Aceptar Propuesta
-        </a>
-        <p style="font-size:11px;color:#aaa;margin:16px 0 0;">O copia este enlace en tu navegador:<br>${acceptUrl}</p>
-      </div>
-
-      ${proposal.agentName ? `
-      <!-- Agent -->
-      <div style="border-top:1px solid #f0f0f0;padding-top:16px;text-align:center;">
-        <p style="font-size:13px;color:#555;margin:0;">Ejecutivo: <strong>${proposal.agentName}</strong>${proposal.agentPhone ? ` · ${proposal.agentPhone}` : ''}${proposal.agentEmail ? ` · ${proposal.agentEmail}` : ''}</p>
-      </div>` : ''}
     </div>
 
     <!-- Footer -->
-    <div style="background:#000;padding:16px 32px;text-align:center;">
-      <p style="color:#666;font-size:12px;margin:0;">Progresa Agencia · progresa-group.cl</p>
+    <div style="background:#000;padding:20px 40px;text-align:center;">
+      <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0;">Progresa Agencia · Avda Oriente 565, Los Ángeles · contacto@agenciaprogresa.cl</p>
+      <p style="color:rgba(255,255,255,0.3);font-size:11px;margin:6px 0 0;">METODOLOGÍA PROGRESA: 1. ESCUCHAR - ANALIZAR / 2. PLANIFICAR - EJECUTAR / 3. MEDIR Y PROGRESAR.</p>
     </div>
   </div>
 </body>
@@ -168,7 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Generate accept token if not exists
   const acceptToken = proposal.acceptToken || crypto.randomBytes(32).toString("hex");
-  const appUrl = process.env.NEXTAUTH_URL || "https://app.progresa-group.cl";
+  const appUrl = process.env.NEXTAUTH_URL || "https://app.agencia-de-marketing.cl";
   const acceptUrl = `${appUrl}/propuesta/${acceptToken}`;
 
   // Update token and sentAt
@@ -182,11 +214,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const html = buildProposalHtml(proposal, acceptUrl);
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "informes@progresa-group.cl";
+  const resend = getResend();
 
   const { error } = await resend.emails.send({
-    from: `Progresa Agencia <${fromEmail}>`,
+    from: `Progresa Agencia <notificaciones@agenciaprogresa.cl>`,
     to: toEmail,
+    cc: "contacto@agenciaprogresa.cl",
     subject: `Propuesta Comercial #${proposal.folio} — ${proposal.name}`,
     html,
   });
