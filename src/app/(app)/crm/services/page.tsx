@@ -205,22 +205,22 @@ export default function ServicesPage() {
                 <button onClick={() => setShowModal(false)}><X size={20} /></button>
               </div>
               <div className="space-y-3">
-                {[
-                  { key: "name",        label: "Nombre *" },
-                  { key: "description", label: "Descripción" },
-                  { key: "price",       label: "Precio (CLP)", type: "number" },
-                  { key: "notes",       label: "Notas" },
-                ].map(({ key, label, type = "text" }) => (
-                  <div key={key}>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-                    <input
-                      type={type}
-                      value={form[key as keyof typeof form] || ""}
-                      onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    />
-                  </div>
-                ))}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                  <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Descripción</label>
+                  <textarea rows={5} value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-vertical" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Precio (CLP)</label>
+                  <input type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Notas</label>
+                  <textarea rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-vertical" />
+                </div>
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm">Cancelar</button>
