@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 const SYSTEM_PROMPT = `Eres un asistente SEO experto llamado "SEO Bot" que trabaja dentro de una app de marketing digital.
 Tu misión es recopilar toda la información necesaria para posicionar una palabra clave en WordPress con RankMath.
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       ? `${SYSTEM_PROMPT}\n\nEl cliente/empresa actual es: ${clientName}.`
       : SYSTEM_PROMPT;
 
-    const response = await anthropic.messages.create({
+    const response = await getAnthropic().messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 600,
       system: systemWithClient,

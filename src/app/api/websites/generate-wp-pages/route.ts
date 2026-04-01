@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 function toSlug(text: string): string {
   return text.toLowerCase().normalize("NFD")
@@ -69,7 +69,7 @@ CRÍTICO:
 - content: HTML válido con al menos 400 palabras, keyword en H1, H2 y primeros párrafos
 - Responde SOLO con el JSON array, sin texto adicional ni markdown`;
 
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 8000,
       messages: [{ role: "user", content: prompt }],

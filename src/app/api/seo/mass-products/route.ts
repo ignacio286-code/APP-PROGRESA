@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 interface ProductInput {
   id: number;
@@ -45,7 +45,7 @@ Responde SOLO con JSON válido (sin markdown):
 
 CRÍTICO: metaTitle debe tener entre 50-60 caracteres. metaDescription debe tener entre 140-155 caracteres. Cuenta los caracteres antes de responder.`;
 
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 function inferWpType(type: string): string {
@@ -53,7 +53,7 @@ Responde ÚNICAMENTE con este JSON válido (sin HTML, sin texto extra):
   ]
 }`;
 
-  const msg = await anthropic.messages.create({
+  const msg = await getAnthropic().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 1200,
     messages: [{ role: "user", content: prompt }],
@@ -159,7 +159,7 @@ ${faq.slice(0, 2).map((f) => `<div class="faq-item"><h3>${f.question}</h3><p>${f
 Devuelve SOLO el HTML, sin JSON.`;
   }
 
-  const msg = await anthropic.messages.create({
+  const msg = await getAnthropic().messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 5000,
     messages: [{ role: "user", content: contentPrompt }],

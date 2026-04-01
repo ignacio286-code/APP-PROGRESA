@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +43,7 @@ Responde SOLO con JSON válido:
 
 Genera content HTML completo y detallado para cada página, mínimo 400 palabras por página.`;
 
-      const message = await anthropic.messages.create({
+      const message = await getAnthropic().messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 4000,
         messages: [{ role: "user", content: prompt }],
@@ -76,7 +76,7 @@ Responde en JSON:
   ]
 }`;
 
-      const message = await anthropic.messages.create({
+      const message = await getAnthropic().messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],

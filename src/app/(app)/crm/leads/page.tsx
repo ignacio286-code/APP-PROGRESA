@@ -45,6 +45,7 @@ const DEFAULT_COLUMNS: ColConfig[] = [
   { key: "contactPerson", label: "Encargado",        visible: true  },
   { key: "phone",         label: "Teléfono",         visible: true  },
   { key: "email",         label: "Email",            visible: true  },
+  { key: "contactDate",   label: "Fecha Contacto",   visible: true  },
   { key: "city",          label: "Ciudad",           visible: true  },
   { key: "status",        label: "Estado",           visible: true  },
   { key: "selectedPlan",  label: "Plan",             visible: true  },
@@ -74,14 +75,14 @@ const STATUS_COLORS: Record<string, string> = {
 const STORAGE_KEY = "crm-leads-columns-v2";
 
 const EMPTY_FORM: Omit<Lead, "id"> = {
-  name: "", rut: "", website: "", contactPerson: "", phone: "", email: "",
+  name: "", rut: "", website: "", contactDate: "", contactPerson: "", phone: "", email: "",
   status: "Nuevo", location: "", city: "", hasSocialMedia: "", workday: "",
   objective: "", description: "", selectedPlan: "", webPlan: "", services: "", notes: "",
 };
 
 const FORM_LABELS: Partial<Record<keyof Omit<Lead, "id">, string>> = {
   name: "Nombre *", contactPerson: "Encargado", phone: "Teléfono", email: "Email",
-  city: "Ciudad", status: "Estado", selectedPlan: "Plan Seleccionado", rut: "RUT",
+  contactDate: "Fecha Contacto", city: "Ciudad", status: "Estado", selectedPlan: "Plan Seleccionado", rut: "RUT",
   website: "Sitio Web", location: "Dirección", services: "Servicios",
   description: "Descripción", objective: "Objetivo", notes: "Notas",
 };
@@ -103,6 +104,7 @@ export default function LeadsPage() {
   const [editing, setEditing] = useState<{ id: string; key: string; value: string } | null>(null);
   const [dragColIdx, setDragColIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "form" | "general">("all");
 
   const fileRef = useRef<HTMLInputElement>(null);
   const colPanelRef = useRef<HTMLDivElement>(null);
@@ -304,12 +306,18 @@ export default function LeadsPage() {
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
-  const filtered = leads.filter(
-    (l) =>
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
-      (l.email || "").toLowerCase().includes(search.toLowerCase()) ||
-      (l.city || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = leads
+    .filter(
+      (l) =>
+        l.name.toLowerCase().includes(search.toLowerCase()) ||
+        (l.email || "").toLowerCase().includes(search.toLowerCase()) ||
+        (l.city || "").toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((l) => {
+      if (activeTab === "form") return !!l.description && l.description.trim() !== "";
+      if (activeTab === "general") return !l.description || l.description.trim() === "";
+      return true;
+    });
 
   const activeColumns = columns.filter((c) => c.visible);
 
@@ -427,6 +435,28 @@ export default function LeadsPage() {
           >
             <Plus size={16} /> Nuevo Lead
           </button>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="flex items-center gap-2 mb-4">
+          {([
+            { key: "all", label: "Todos" },
+            { key: "form", label: "Formulario" },
+            { key: "general", label: "General" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="px-4 py-1.5 rounded-full text-sm font-medium transition"
+              style={
+                activeTab === tab.key
+                  ? { backgroundColor: "#FFC207", color: "#000" }
+                  : { backgroundColor: "#f3f4f6", color: "#6b7280" }
+              }
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <p className="text-xs text-gray-400 mb-3">{filtered.length} registros</p>

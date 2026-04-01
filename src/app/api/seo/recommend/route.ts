@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,7 +54,7 @@ IMPORTANTE:
 - Si "contentFull" tiene valor, se usará como el contenido completo reemplazando el actual
 - Sé específico con los valores: no pongas ejemplos genéricos, usa el nombre real del producto/página/empresa`;
 
-    const message = await client.messages.create({
+    const message = await getAnthropic().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
       messages: [{ role: "user", content: prompt }],

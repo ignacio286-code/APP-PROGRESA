@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 function truncate(text: string, max: number): string {
   if (!text) return "";
@@ -45,7 +45,7 @@ CRÍTICO:
 - metaDescription: entre 140-155 caracteres
 - content: HTML válido mejorado con la keyword integrada en título, subtítulos y contenido`;
 
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],

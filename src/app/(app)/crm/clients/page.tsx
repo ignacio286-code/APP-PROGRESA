@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import {
   Search, Users, Phone, Mail, Globe, FileText, Trash2,
   RefreshCw, DollarSign, Pencil, X, Save, ChevronDown,
-  Building2, ExternalLink, Upload,
+  Building2, ExternalLink, Upload, Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface ProposalItem { quantity: number; unitPrice: number; discount: number; tax: number; }
 
@@ -81,6 +82,9 @@ export default function ClientsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   // Edit modal
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [editing, setEditing] = useState<Client | null>(null);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
   const [editPdfUrl, setEditPdfUrl] = useState("");
@@ -141,6 +145,60 @@ export default function ClientsPage() {
     } finally { setSaving(false); }
   }
 
+  // ── Excel export / import ──────────────────────────────────────────────────
+
+  function handleExport() {
+    const rows = clients.map((c) => ({
+      Nombre: c.name || "",
+      RUT: c.rut || "",
+      Contacto: c.contactPerson || "",
+      Telefono: c.phone || "",
+      Email: c.email || "",
+      Ciudad: c.city || "",
+      Plan: c.selectedPlan || "",
+      Servicios: c.services || "",
+      Estado: c.status || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clientes Progresa");
+    XLSX.writeFile(wb, "clientes_progresa.xlsx");
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+    const labelToKey: Record<string, string> = {
+      Nombre: "name", RUT: "rut", Contacto: "contactPerson",
+      Telefono: "phone", Email: "email", Ciudad: "city",
+      Plan: "selectedPlan", Servicios: "services", Estado: "status",
+    };
+    let ok = 0;
+    for (const row of rows) {
+      const data: Record<string, string> = {};
+      for (const [label, value] of Object.entries(row)) {
+        const key = labelToKey[label];
+        if (key) data[key] = String(value);
+      }
+      if (!data.name) continue;
+      await fetch("/api/crm/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      ok++;
+    }
+    setImporting(false);
+    if (fileRef.current) fileRef.current.value = "";
+    alert(`${ok} clientes importados.`);
+    load();
+  }
+
   const filtered = clients.filter(c => {
     const matchSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -197,6 +255,20 @@ export default function ClientsPage() {
           <button onClick={load} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition"
+          >
+            <Download size={15} /> Exportar
+          </button>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm hover:bg-blue-100 disabled:opacity-60 transition"
+          >
+            <Upload size={15} /> {importing ? "Importando..." : "Importar Excel"}
+          </button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
         </div>
 
         {loading ? (

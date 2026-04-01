@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +34,7 @@ Para cada elemento devuelve:
 Responde ÚNICAMENTE con un JSON array válido, sin texto adicional, sin markdown:
 [{"id": 123, "seoTitle": "...", "metaDescription": "...", "focusKeyword": "...", "schema": "Article"}, ...]`;
 
-    const message = await client.messages.create({
+    const message = await getAnthropic().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],

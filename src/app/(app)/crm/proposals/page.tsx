@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import {
   Search, Plus, Trash2, X, ChevronDown, ChevronRight,
-  FileText, Filter, Download, Edit2, Check, User, Package, RefreshCw
+  FileText, Filter, Download, Upload, Edit2, Check, User, Package, RefreshCw
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -352,6 +353,8 @@ function ProposalsContent() {
   // Lost reason modal
   const [lostModal, setLostModal] = useState<{ id: string } | null>(null);
   const [lostReason, setLostReason] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -540,6 +543,71 @@ function ProposalsContent() {
     setSyncingMonday(false);
   }
 
+  // ── Excel export / import ──────────────────────────────────────────────────
+
+  const EXPORT_COLUMNS: { key: string; label: string }[] = [
+    { key: "folio", label: "Folio" },
+    { key: "name", label: "Nombre" },
+    { key: "clientRut", label: "RUT Cliente" },
+    { key: "clientEmail", label: "Email" },
+    { key: "clientPhone", label: "Telefono" },
+    { key: "status", label: "Estado" },
+    { key: "issueDate", label: "Fecha Emision" },
+    { key: "_total", label: "Total" },
+  ];
+
+  function handleExport() {
+    const rows = visibleItems.map((p) => {
+      const row: Record<string, string | number> = {};
+      for (const col of EXPORT_COLUMNS) {
+        if (col.key === "_total") {
+          row[col.label] = proposalNetTotal(p.items);
+        } else {
+          row[col.label] = (p as Record<string, unknown>)[col.key] as string || "";
+        }
+      }
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Propuestas");
+    XLSX.writeFile(wb, "propuestas.xlsx");
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+    const labelToKey = Object.fromEntries(
+      EXPORT_COLUMNS.filter((c) => c.key !== "_total").map(({ key, label }) => [label, key])
+    );
+    let ok = 0;
+    for (const row of rows) {
+      const data: Record<string, string> = {};
+      for (const [label, value] of Object.entries(row)) {
+        const key = labelToKey[label];
+        if (key) data[key] = String(value);
+      }
+      if (!data.name) continue;
+      if (!data.status) data.status = "Pendiente";
+      if (!data.issueDate) data.issueDate = new Date().toISOString().slice(0, 10);
+      await fetch("/api/crm/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      ok++;
+    }
+    setImporting(false);
+    if (fileRef.current) fileRef.current.value = "";
+    alert(`${ok} propuestas importadas.`);
+    fetchProposals();
+  }
+
   // Compute tab counts
   const tabCounts = {
     "": items.length,
@@ -626,6 +694,20 @@ function ProposalsContent() {
             <RefreshCw size={15} className={syncingMonday ? "animate-spin" : ""} />
             {syncingMonday ? "Sincronizando..." : "Sincronizar Monday"}
           </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition"
+          >
+            <Download size={15} /> Exportar
+          </button>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm hover:bg-blue-100 disabled:opacity-60 transition"
+          >
+            <Upload size={15} /> {importing ? "Importando..." : "Importar Excel"}
+          </button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
           <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black"
