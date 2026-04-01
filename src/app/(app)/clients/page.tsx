@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   name: "",
   website: "",
   industry: "",
+  logoUrl: "",
   wpUrl: "",
   wpUsername: "",
   wpAppPassword: "",
@@ -185,7 +186,7 @@ export default function ClientsPage() {
   function openEdit(client: Client) {
     setSaveError(null); setEditingClient(client);
     setForm({
-      name: client.name || "", website: client.website || "", industry: client.industry || "",
+      name: client.name || "", website: client.website || "", industry: client.industry || "", logoUrl: client.logoUrl || "",
       wpUrl: client.wpUrl || "", wpUsername: client.wpUsername || "", wpAppPassword: client.wpAppPassword || "",
       metaAppId: client.metaAppId || "", metaAppSecret: client.metaAppSecret || "",
       metaAccessToken: client.metaAccessToken || "", metaAdAccountId: client.metaAdAccountId || "",
@@ -402,6 +403,21 @@ export default function ClientsPage() {
                     {industries.map((i) => <option key={i} value={i}>{i}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Logo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logo del cliente (URL)</label>
+                <div className="flex items-center gap-3">
+                  <input name="logoUrl" value={form.logoUrl} onChange={handleTextChange}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    placeholder="https://ejemplo.com/logo.png" />
+                  {form.logoUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={form.logoUrl} alt="Logo" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 8, border: "1px solid #e5e7eb" }} />
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Se mostrará en los informes analíticos del cliente</p>
               </div>
 
               {/* ── WordPress ── */}
