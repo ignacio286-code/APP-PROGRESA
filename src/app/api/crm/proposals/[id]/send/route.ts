@@ -53,7 +53,7 @@ function buildProposalHtml(proposal: {
       <tr>
         <td style="padding:14px 16px;border-bottom:1px solid #f0f0f0;">
           <strong style="font-size:14px;color:#111;">${item.name}</strong>
-          ${item.description ? `<br><span style="color:#666;font-size:13px;line-height:1.6;">${item.description}</span>` : ''}
+          ${item.description ? `<br><span style="color:#444;font-size:13px;line-height:1.6;">${item.description}</span>` : ''}
         </td>
         <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:14px;">${item.quantity}</td>
         <td style="padding:14px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:14px;">${formatCLP(item.unitPrice)}</td>
@@ -75,14 +75,13 @@ function buildProposalHtml(proposal: {
         <tr>
           <td style="vertical-align:top;">
             <div style="margin-bottom:8px;">
-              <span style="font-size:32px;font-weight:900;color:#fff;letter-spacing:-1px;">Progresa</span>
-              <span style="font-size:18px;font-style:italic;font-weight:600;color:#FFC207;margin-left:6px;">Agencia</span>
+              <img src="https://agencia-de-marketing.cl/logo-progresa-blanco.webp" alt="Progresa Agencia" width="160" style="display:block;margin-bottom:8px;">
             </div>
-            <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0;line-height:1.6;">
+            <p style="color:rgba(255,255,255,0.85);font-size:12px;margin:0;line-height:1.6;">
               PROGRESA GROUP SpA · 77.910.002-2<br>
               Avda Oriente 565, Los Ángeles<br>
               Región del Bío Bío, Chile<br>
-              +56 9 9943 7664 · contacto@agenciaprogresa.cl
+              +56 9 9943 7664 · <a href="mailto:contacto@agenciaprogresa.cl" style="color:#FFC207;text-decoration:none;">contacto@agenciaprogresa.cl</a>
             </p>
           </td>
           <td style="text-align:right;vertical-align:top;">
@@ -106,23 +105,23 @@ function buildProposalHtml(proposal: {
         <tr>
           <td style="vertical-align:top;width:55%;padding-right:20px;">
             <div style="background:#f8f9fa;border-radius:12px;padding:20px;border-left:4px solid #FFC207;">
-              <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px;font-weight:700;">EMPRESA</p>
+              <p style="font-size:11px;color:#FFC207;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px;font-weight:700;">EMPRESA</p>
               <p style="font-size:18px;font-weight:800;color:#111;margin:0 0 6px;">${proposal.name}</p>
-              ${proposal.clientRut ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">RUT: <strong>${proposal.clientRut}</strong></p>` : ''}
-              ${proposal.clientAddress ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Dirección: ${proposal.clientAddress}</p>` : ''}
-              ${proposal.clientPhone ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Teléfono: <strong>${proposal.clientPhone}</strong></p>` : ''}
-              ${proposal.clientEmail ? `<p style="font-size:13px;color:#555;margin:0;">Email: <strong>${proposal.clientEmail}</strong></p>` : ''}
+              ${proposal.clientRut ? `<p style="font-size:13px;color:#333;margin:0 0 3px;">RUT: <strong>${proposal.clientRut}</strong></p>` : ''}
+              ${proposal.clientAddress ? `<p style="font-size:13px;color:#333;margin:0 0 3px;">Dirección: ${proposal.clientAddress}</p>` : ''}
+              ${proposal.clientPhone ? `<p style="font-size:13px;color:#333;margin:0 0 3px;">Teléfono: <strong>${proposal.clientPhone}</strong></p>` : ''}
+              ${proposal.clientEmail ? `<p style="font-size:13px;color:#333;margin:0;">Email: <strong>${proposal.clientEmail}</strong></p>` : ''}
             </div>
           </td>
           <td style="vertical-align:top;">
             <div style="background:#f8f9fa;border-radius:12px;padding:20px;">
-              <p style="font-size:13px;color:#555;margin:0 0 8px;">Fecha de Emisión: <strong>${new Date(proposal.issueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
-              ${proposal.dueDate ? `<p style="font-size:13px;color:#555;margin:0 0 8px;">Fecha de Vencimiento: <strong>${new Date(proposal.dueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>` : ''}
+              <p style="font-size:13px;color:#333;margin:0 0 8px;">Fecha de Emisión: <strong>${new Date(proposal.issueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
+              ${proposal.dueDate ? `<p style="font-size:13px;color:#333;margin:0 0 8px;">Fecha de Vencimiento: <strong>${new Date(proposal.dueDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>` : ''}
               ${proposal.agentName ? `
               <div style="border-top:1px solid #e5e7eb;padding-top:10px;margin-top:10px;">
-                <p style="font-size:13px;color:#555;margin:0 0 3px;">Ejecutivo: <strong>${proposal.agentName}</strong></p>
-                ${proposal.agentPhone ? `<p style="font-size:13px;color:#555;margin:0 0 3px;">Tel: ${proposal.agentPhone}</p>` : ''}
-                ${proposal.agentEmail ? `<p style="font-size:13px;color:#555;margin:0;">Email: ${proposal.agentEmail}</p>` : ''}
+                <p style="font-size:13px;color:#333;margin:0 0 3px;">Ejecutivo: <strong>${proposal.agentName}</strong></p>
+                ${proposal.agentPhone ? `<p style="font-size:13px;color:#333;margin:0 0 3px;">Tel: ${proposal.agentPhone}</p>` : ''}
+                ${proposal.agentEmail ? `<p style="font-size:13px;color:#333;margin:0;">Email: ${proposal.agentEmail}</p>` : ''}
               </div>` : ''}
             </div>
           </td>
@@ -146,9 +145,9 @@ function buildProposalHtml(proposal: {
       <!-- Totals -->
       <div style="text-align:right;margin-bottom:32px;">
         <table style="margin-left:auto;border-collapse:collapse;">
-          <tr><td style="padding:6px 20px;font-size:14px;color:#555;">Valor Neto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(subtotal)}</td></tr>
-          <tr><td style="padding:6px 20px;font-size:14px;color:#555;">Descuento Total</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(0)}</td></tr>
-          ${tax > 0 ? `<tr><td style="padding:6px 20px;font-size:14px;color:#555;">Impuesto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(tax)}</td></tr>` : ''}
+          <tr><td style="padding:6px 20px;font-size:14px;color:#333;">Valor Neto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(subtotal)}</td></tr>
+          <tr><td style="padding:6px 20px;font-size:14px;color:#333;">Descuento Total</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(0)}</td></tr>
+          ${tax > 0 ? `<tr><td style="padding:6px 20px;font-size:14px;color:#333;">Impuesto</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right;">${formatCLP(tax)}</td></tr>` : ''}
           <tr style="border-top:3px solid #FFC207;">
             <td style="padding:12px 20px;font-size:18px;font-weight:900;color:#000;">Total</td>
             <td style="padding:12px 0;font-size:18px;font-weight:900;color:#000;text-align:right;">${formatCLP(total)}</td>
@@ -162,22 +161,27 @@ function buildProposalHtml(proposal: {
         <a href="${acceptUrl}" style="display:inline-block;background:#FFC207;color:#000;font-weight:800;font-size:17px;padding:16px 48px;border-radius:50px;text-decoration:none;letter-spacing:0.5px;">
           ✓ Aceptar Propuesta
         </a>
-        <p style="font-size:11px;color:rgba(255,255,255,0.4);margin:20px 0 0;">O copia este enlace: ${acceptUrl}</p>
+      </div>
+
+      <!-- Bank Transfer -->
+      <div style="background:#000;border-radius:12px;padding:24px;margin-top:28px;">
+        <p style="font-size:13px;color:#FFC207;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;font-weight:800;">Datos de Transferencia</p>
+        <table style="width:100%;"><tr><td style="padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7);width:140px;">Razón Social:</td><td style="padding:4px 0;font-size:13px;color:#fff;font-weight:600;">PROGRESA GROUP SpA</td></tr><tr><td style="padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7);">RUT:</td><td style="padding:4px 0;font-size:13px;color:#fff;font-weight:600;">77.910.002-2</td></tr><tr><td style="padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7);">Banco:</td><td style="padding:4px 0;font-size:13px;color:#fff;font-weight:600;">Banco Estado</td></tr><tr><td style="padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7);">Tipo Cuenta:</td><td style="padding:4px 0;font-size:13px;color:#fff;font-weight:600;">Cuenta Corriente</td></tr><tr><td style="padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7);">Email:</td><td style="padding:4px 0;font-size:13px;color:#FFC207;font-weight:600;">contacto@agenciaprogresa.cl</td></tr></table>
       </div>
 
       ${proposal.termsConditions ? `
       <!-- Terms -->
       <div style="background:#f8f9fa;border-radius:12px;padding:24px;margin-top:24px;border-top:3px solid #FFC207;">
         <p style="font-size:13px;color:#000;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;font-weight:800;">Términos y Condiciones</p>
-        <p style="font-size:13px;color:#555;margin:0;line-height:1.8;">${proposal.termsConditions.replace(/\n/g, '<br>')}</p>
+        <p style="font-size:13px;color:#333;margin:0;line-height:1.8;">${proposal.termsConditions.replace(/\n/g, '<br>')}</p>
       </div>` : ''}
 
     </div>
 
     <!-- Footer -->
-    <div style="background:#000;padding:20px 40px;text-align:center;">
-      <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0;">Progresa Agencia · Avda Oriente 565, Los Ángeles · contacto@agenciaprogresa.cl</p>
-      <p style="color:rgba(255,255,255,0.3);font-size:11px;margin:6px 0 0;">METODOLOGÍA PROGRESA: 1. ESCUCHAR - ANALIZAR / 2. PLANIFICAR - EJECUTAR / 3. MEDIR Y PROGRESAR.</p>
+    <div style="background:#000;padding:24px 40px;text-align:center;"><img src="https://agencia-de-marketing.cl/logo-progresa-blanco.webp" alt="Progresa" width="120" style="display:block;margin:0 auto 12px;">
+      <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0;">Progresa Agencia · Avda Oriente 565, Los Ángeles · contacto@agenciaprogresa.cl</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:11px;margin:6px 0 0;">METODOLOGÍA PROGRESA: 1. ESCUCHAR - ANALIZAR / 2. PLANIFICAR - EJECUTAR / 3. MEDIR Y PROGRESAR.</p>
     </div>
   </div>
 </body>
