@@ -563,7 +563,8 @@ function ProposalsContent() {
         if (col.key === "_total") {
           row[col.label] = proposalNetTotal(p.items);
         } else {
-          row[col.label] = (p as Record<string, unknown>)[col.key] as string || "";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          row[col.label] = ((p as unknown) as Record<string, unknown>)[col.key] as string || "";
         }
       }
       return row;
