@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const docs = await prisma.crmDocument.findMany({
