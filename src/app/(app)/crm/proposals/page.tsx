@@ -349,6 +349,8 @@ function ProposalsContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   // Lost reason modal
   const [lostModal, setLostModal] = useState<{ id: string } | null>(null);
   const [lostReason, setLostReason] = useState("");
@@ -627,10 +629,18 @@ function ProposalsContent() {
     "Estancado": items.filter(p => p.status === "Estancado").length,
   };
 
+  const activeFilterCount = [dateFrom, dateTo].filter(Boolean).length;
+
   const visibleItems = items.filter(p => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.clientEmail || "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.clientRut || "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.folio || "").toLowerCase().includes(search.toLowerCase());
     const matchTab = !activeTab || p.status === activeTab;
-    return matchSearch && matchTab;
+    const issueDate = p.issueDate ? p.issueDate.slice(0, 10) : "";
+    const matchDateFrom = !dateFrom || issueDate >= dateFrom;
+    const matchDateTo = !dateTo || issueDate <= dateTo;
+    return matchSearch && matchTab && matchDateFrom && matchDateTo;
   });
 
   return (
@@ -693,10 +703,14 @@ function ProposalsContent() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar empresa o cliente..."
+              placeholder="Buscar empresa, email, RUT, folio..."
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
+          <button onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${showFilters ? "border-yellow-400 bg-yellow-50 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+            <Filter size={15} /> Filtros {activeFilterCount > 0 && <span className="bg-yellow-400 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">{activeFilterCount}</span>}
+          </button>
           <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition"
@@ -719,6 +733,28 @@ function ProposalsContent() {
             <Plus size={16} /> Nueva Propuesta
           </button>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Fecha emisión desde</label>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Fecha emisión hasta</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            {(dateFrom || dateTo) && (
+              <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 transition">
+                Limpiar fechas
+              </button>
+            )}
+          </div>
+        )}
 
         {items.length > 0 && <TotalsBar proposals={items} />}
         <p className="text-sm text-gray-500 mb-3">{visibleItems.length} propuesta{visibleItems.length !== 1 ? "s" : ""}</p>

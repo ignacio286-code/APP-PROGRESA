@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
-import { Search, Plus, Trash2, X, Download, Upload, Edit2 } from "lucide-react";
+import { Search, Plus, Trash2, X, Download, Upload, Edit2, Filter } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface Service {
@@ -30,6 +30,8 @@ const COLUMNS = [
 export default function ServicesPage() {
   const [items, setItems] = useState<Service[]>([]);
   const [search, setSearch] = useState("");
+  const [priceFilter, setPriceFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -126,21 +128,40 @@ export default function ServicesPage() {
     fetchServices();
   }
 
-  const filtered = items.filter((i) =>
-    i.name.toLowerCase().includes(search.toLowerCase()) ||
-    (i.description || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const PRICE_RANGES = [
+    { key: "", label: "Todos" },
+    { key: "low", label: "< $100.000" },
+    { key: "mid", label: "$100.000 - $500.000" },
+    { key: "high", label: "> $500.000" },
+  ];
+
+  const activeFilterCount = priceFilter ? 1 : 0;
+
+  const filtered = items.filter((i) => {
+    const matchSearch =
+      i.name.toLowerCase().includes(search.toLowerCase()) ||
+      (i.description || "").toLowerCase().includes(search.toLowerCase());
+    let matchPrice = true;
+    if (priceFilter === "low") matchPrice = (i.price || 0) < 100000;
+    else if (priceFilter === "mid") matchPrice = (i.price || 0) >= 100000 && (i.price || 0) <= 500000;
+    else if (priceFilter === "high") matchPrice = (i.price || 0) > 500000;
+    return matchSearch && matchPrice;
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header title="Catálogo de Servicios" />
       <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar servicio..."
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
           </div>
+          <button onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${showFilters ? "border-yellow-400 bg-yellow-50 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+            <Filter size={15} /> Filtros {activeFilterCount > 0 && <span className="bg-yellow-400 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">{activeFilterCount}</span>}
+          </button>
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition">
             <Download size={15} /> Exportar Excel
           </button>
@@ -153,6 +174,25 @@ export default function ServicesPage() {
             <Plus size={16} /> Nuevo Servicio
           </button>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Rango de precio</label>
+              <div className="flex gap-2 flex-wrap">
+                {PRICE_RANGES.map(r => (
+                  <button key={r.key} onClick={() => setPriceFilter(priceFilter === r.key ? "" : r.key)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                      (r.key === "" && !priceFilter) || priceFilter === r.key
+                        ? "border-yellow-400 bg-yellow-100 text-yellow-700"
+                        : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                    }`}>{r.label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="text-sm text-gray-500 mb-4">{filtered.length} servicios</p>
 

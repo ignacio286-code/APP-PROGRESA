@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import {
   Search, Users, Phone, Mail, Globe, FileText, Trash2,
   RefreshCw, DollarSign, Pencil, X, Save, ChevronDown,
-  Building2, ExternalLink, Upload, Download,
+  Building2, ExternalLink, Upload, Download, Filter,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -79,6 +79,9 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -200,6 +203,11 @@ export default function ClientsPage() {
     load();
   }
 
+  const activeFilterCount = [statusFilter, cityFilter, planFilter].filter(Boolean).length;
+
+  // Derive unique cities from data
+  const uniqueCities = Array.from(new Set(clients.map(c => c.city).filter(Boolean) as string[])).sort();
+
   const filtered = clients.filter(c => {
     const matchSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -207,7 +215,9 @@ export default function ClientsPage() {
       (c.city || "").toLowerCase().includes(search.toLowerCase()) ||
       (c.rut || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || c.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCity = !cityFilter || c.city === cityFilter;
+    const matchPlan = !planFilter || c.selectedPlan === planFilter;
+    return matchSearch && matchStatus && matchCity && matchPlan;
   });
 
   const stats = {
@@ -237,7 +247,7 @@ export default function ClientsPage() {
           ))}
         </div>
 
-        {/* Filters */}
+        {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -245,14 +255,10 @@ export default function ClientsPage() {
               placeholder="Buscar por nombre, email, RUT..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" />
           </div>
-          <div className="relative">
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); }}
-              className="pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 appearance-none">
-              <option value="">Todos los estados</option>
-              {STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+          <button onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${showFilters ? "border-yellow-400 bg-yellow-50 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+            <Filter size={15} /> Filtros {activeFilterCount > 0 && <span className="bg-yellow-400 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">{activeFilterCount}</span>}
+          </button>
           <button onClick={load} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
@@ -271,6 +277,42 @@ export default function ClientsPage() {
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setStatusFilter("")} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${!statusFilter ? "border-yellow-400 bg-yellow-100 text-yellow-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>Todos</button>
+                {STATUSES.map(s => (
+                  <button key={s} onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${statusFilter === s ? `border-transparent ${STATUS_COLORS[s]}` : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{s}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ciudad</label>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setCityFilter("")} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${!cityFilter ? "border-yellow-400 bg-yellow-100 text-yellow-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>Todas</button>
+                {uniqueCities.map(c => (
+                  <button key={c} onClick={() => setCityFilter(cityFilter === c ? "" : c)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${cityFilter === c ? "border-transparent bg-blue-100 text-blue-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{c}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Plan</label>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setPlanFilter("")} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${!planFilter ? "border-yellow-400 bg-yellow-100 text-yellow-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>Todos</button>
+                {PLANS.map(p => (
+                  <button key={p} onClick={() => setPlanFilter(planFilter === p ? "" : p)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${planFilter === p ? "border-transparent bg-purple-100 text-purple-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{p}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center h-40"><RefreshCw size={24} className="animate-spin text-gray-400" /></div>
