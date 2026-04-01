@@ -483,7 +483,7 @@ function ProposalsContent() {
       const data = await res.json();
       if (data.ok) {
         alert(`✓ Propuesta enviada a ${email}`);
-        fetchItems();
+        fetchProposals();
       } else {
         alert("Error: " + (data.error || "No se pudo enviar"));
       }
