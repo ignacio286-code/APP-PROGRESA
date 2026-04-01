@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import {
   Search, Plus, Trash2, X, Download, Upload,
-  Columns, GripVertical, RefreshCw,
+  Columns, GripVertical,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -98,7 +98,6 @@ export default function LeadsPage() {
   const [form, setForm] = useState<Omit<Lead, "id">>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [syncingMonday, setSyncingMonday] = useState(false);
   const [showColPanel, setShowColPanel] = useState(false);
   const [columns, setColumns] = useState<ColConfig[]>(DEFAULT_COLUMNS);
   const [editing, setEditing] = useState<{ id: string; key: string; value: string } | null>(null);
@@ -226,22 +225,6 @@ export default function LeadsPage() {
     });
   }
 
-  // ── Monday sync ────────────────────────────────────────────────────────────
-
-  async function handleSyncMonday() {
-    setSyncingMonday(true);
-    try {
-      const res = await fetch("/api/crm/import", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) alert(`Sincronización completada.\nLeads: ${data.imported.leads}`);
-      else alert("Error: " + (data.error || "desconocido"));
-      fetchLeads();
-    } catch {
-      alert("Error de red al sincronizar.");
-    }
-    setSyncingMonday(false);
-  }
-
   // ── Excel export / import ──────────────────────────────────────────────────
 
   function handleExport() {
@@ -343,16 +326,6 @@ export default function LeadsPage() {
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-
-          {/* Monday sync */}
-          <button
-            onClick={handleSyncMonday}
-            disabled={syncingMonday}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm hover:bg-gray-50 disabled:opacity-60 transition"
-          >
-            <RefreshCw size={15} className={syncingMonday ? "animate-spin" : ""} />
-            {syncingMonday ? "Sincronizando..." : "Sincronizar Monday"}
-          </button>
 
           {/* Excel */}
           <button

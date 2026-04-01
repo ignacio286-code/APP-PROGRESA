@@ -29,7 +29,8 @@ interface Client {
   notes?: string;
   status: string;
   startDate: string;
-  proposal?: { folio?: string; items: ProposalItem[] };
+  proposalId?: string;
+  proposal?: { id?: string; folio?: string; name?: string; items: ProposalItem[] };
 }
 
 function itemTotal(i: ProposalItem) {
@@ -287,6 +288,7 @@ export default function ClientsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Contacto</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Plan</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Propuesta</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Pago Mensual</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Estado</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Acciones</th>
@@ -323,16 +325,25 @@ export default function ClientsPage() {
                             {client.selectedPlan}
                           </span>
                         )}
-                        {client.proposal?.folio && (
-                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                            <FileText size={10} />#{client.proposal.folio}
-                          </p>
-                        )}
-                        {pdfUrl && (
-                          <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline mt-1 flex items-center gap-1">
-                            <ExternalLink size={10} />Ver propuesta
+                      </td>
+                      <td className="px-4 py-3 text-center hidden md:table-cell">
+                        {client.proposal?.id ? (
+                          <a
+                            href={`/crm/proposals/${client.proposal.id}/print`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition"
+                          >
+                            <FileText size={13} />
+                            {client.proposal.folio ? `#${client.proposal.folio}` : "Ver PDF"}
                           </a>
+                        ) : pdfUrl ? (
+                          <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition">
+                            <ExternalLink size={13} />Ver propuesta
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -471,6 +482,29 @@ export default function ClientsPage() {
                   </select>
                 </div>
               </div>
+
+              {editing.proposal?.id && (
+                <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <label className="block text-xs font-semibold text-yellow-700 mb-2 flex items-center gap-2">
+                    <FileText size={13} />
+                    Propuesta aceptada
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-700">
+                      {editing.proposal.folio ? `Folio #${editing.proposal.folio}` : "Propuesta vinculada"}
+                      {editing.proposal.name ? ` — ${editing.proposal.name}` : ""}
+                    </span>
+                    <a
+                      href={`/crm/proposals/${editing.proposal.id}/print`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition"
+                    >
+                      <ExternalLink size={12} />Ver PDF
+                    </a>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Servicios contratados</label>

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import {
   Search, Plus, Trash2, X, ChevronDown, ChevronRight,
-  FileText, Filter, Download, Upload, Edit2, Check, User, Package, RefreshCw, Send
+  FileText, Filter, Download, Upload, Edit2, Check, User, Package, Send
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -349,7 +349,6 @@ function ProposalsContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [syncingMonday, setSyncingMonday] = useState(false);
   // Lost reason modal
   const [lostModal, setLostModal] = useState<{ id: string } | null>(null);
   const [lostReason, setLostReason] = useState("");
@@ -554,20 +553,6 @@ function ProposalsContent() {
 
   const formTotal = form.items.reduce((sum, i) => sum + itemTotal(i), 0);
 
-  async function handleSyncMonday() {
-    setSyncingMonday(true);
-    try {
-      const res = await fetch("/api/crm/import", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) alert(`Sincronización completada.\nPropuestas importadas: ${data.imported.proposals}`);
-      else alert("Error: " + (data.error || "desconocido"));
-      fetchProposals();
-    } catch {
-      alert("Error de red al sincronizar.");
-    }
-    setSyncingMonday(false);
-  }
-
   // ── Excel export / import ──────────────────────────────────────────────────
 
   const EXPORT_COLUMNS: { key: string; label: string }[] = [
@@ -712,14 +697,6 @@ function ProposalsContent() {
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-          <button
-            onClick={handleSyncMonday}
-            disabled={syncingMonday}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm hover:bg-gray-50 disabled:opacity-60 transition"
-          >
-            <RefreshCw size={15} className={syncingMonday ? "animate-spin" : ""} />
-            {syncingMonday ? "Sincronizando..." : "Sincronizar Monday"}
-          </button>
           <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition"

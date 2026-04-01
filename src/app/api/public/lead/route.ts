@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     try {
       await resend.emails.send({
         from: "Progresa Web <notificaciones@agenciaprogresa.cl>",
-        to: "contacto@agenciaprogresa.cl",
+        to: "progresa.agency@gmail.com",
         subject: `Nuevo cliente potencial: ${name}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
