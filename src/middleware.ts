@@ -15,6 +15,8 @@ export async function middleware(req: NextRequest) {
     return res;
   }
   if (pathname.startsWith("/propuesta/")) return NextResponse.next();
+  if (pathname.startsWith("/api/search-console")) return NextResponse.next();
+  if (pathname.startsWith("/api/cron")) return NextResponse.next();
 
   // NextAuth v5 uses "authjs.session-token" (HTTP) or "__Secure-authjs.session-token" (HTTPS)
   const isSecure = req.url.startsWith("https://");
